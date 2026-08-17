@@ -1,0 +1,225 @@
+// ---------------------------------------------------------------------
+// LabCal Calibration Suite — service worker
+// Bump CACHE_VERSION any time the HTML/JS files change and you want
+// devices that already installed the app to pick up the new version.
+// ---------------------------------------------------------------------
+const CACHE_VERSION  = 'v18';
+const STATIC_CACHE   = `labcal-static-${CACHE_VERSION}`;
+const RUNTIME_CACHE  = `labcal-runtime-${CACHE_VERSION}`;
+
+// Same-origin app shell — every page in the suite.
+// Add new pages here (and to OFFLINE_PAGES in index.html) when you add them.
+const APP_SHELL = [
+  './',
+  './index.html',
+  // shared modules — the probe offsets vault every page reads from
+  './labcal_offsets.js',
+  './labcal_jobsheet.js',
+  './labcal_save.js',
+  './labcal_certs.js',
+  './labcal_units.js',
+  './labcal_backup.js',
+  './labcal_pdf.js',
+  './labcal_vector_pdf.js',
+  './labcal_font_dancing.js',
+  './pdf-lib.min.js',   // ~512 KB, loaded only when merging a day's certificates
+  // section pages
+  './calibration.html',
+  './tools.html',
+  // calibration worksheets
+  './barkey_calibration_form.html',
+  './calibration_worksheet_SMD.html',
+  './calibration_worksheet_SNMD.html',
+  './calibration_worksheet_19_24.html',
+  './monitoring_systems.html',
+  './cloud_temp.html',
+  // tools & utilities
+  './data_logger_viewer.html',
+  './pdf_merge_reorder.html'   // ~1.9 MB, fully self-contained
+];
+
+// Third-party libraries the worksheets load from CDNs (pdf.js, html2pdf,
+// xlsx, jspdf, html2canvas-pro, Google font CSS). These URLs are versioned,
+// so caching them long-term is safe.
+const CDN_ASSETS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.0/dist/html2canvas-pro.min.js',
+  'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap'
+];
+
+const ALL_ASSETS = [...APP_SHELL, ...CDN_ASSETS];
+
+// ---------------------------------------------------------------------
+// Caching helpers
+// ---------------------------------------------------------------------
+
+// The Google Fonts stylesheet only *references* the real font files on
+// fonts.gstatic.com. Caching the CSS alone leaves the cursive signature
+// font unavailable offline, so pull those URLs out and cache them too.
+async function cacheReferencedFonts(cache, url, res){
+  if(!url.includes('fonts.googleapis.com')) return;
+  try{
+    const css = await res.clone().text();
+    if(!css) return; // opaque response — nothing readable
+    const fontUrls = [...css.matchAll(/url\((https:\/\/fonts\.gstatic\.com[^)]+)\)/g)].map(m => m[1]);
+    await Promise.all(fontUrls.map(async f => {
+      try{
+        const fr = await fetch(f, { mode: 'no-cors', cache: 'reload' });
+        await cache.put(f, fr);
+      }catch(e){ /* non-fatal */ }
+    }));
+  }catch(e){ /* non-fatal */ }
+}
+
+// Fetch a URL and store it.
+//
+// IMPORTANT: a no-cors ("opaque") response looks identical whether the CDN
+// returned the real library or a 403/404 error page — status is always 0 and
+// the body can't be read. Blindly caching those means a flaky connection or
+// captive portal can silently store junk while reporting a successful
+// download, and the worksheet then breaks offline with no warning.
+// So: do a normal CORS request first and require res.ok. Only fall back to an
+// opaque request as a last resort, and flag it as unverified so the caller can
+// tell the engineer rather than promising everything is fine.
+//
+// Returns { ok, verified }.
+async function cacheOne(cache, url){
+  const sameOrigin = new URL(url, self.location.href).origin === self.location.origin;
+  try{
+    const res = await fetch(url, { cache: 'reload' });
+    if(res && res.ok){
+      await cache.put(url, res.clone());
+      await cacheReferencedFonts(cache, url, res);
+      return { ok:true, verified:true };
+    }
+  }catch(e){ /* fall through to the opaque attempt */ }
+
+  if(!sameOrigin){
+    try{
+      const res = await fetch(url, { mode: 'no-cors', cache: 'reload' });
+      if(res && res.type === 'opaque'){
+        await cache.put(url, res);
+        return { ok:true, verified:false };
+      }
+    }catch(e){ /* give up on this one */ }
+  }
+  return { ok:false, verified:false };
+}
+
+// Cache a list of URLs one at a time, reporting progress. Never throws —
+// a single failure must not abandon the whole download.
+async function cacheList(cache, urls, onProgress){
+  const failed = [], unverified = [];
+  for(const url of urls){
+    const r = await cacheOne(cache, url);
+    if(!r.ok) failed.push(url);
+    else if(!r.verified) unverified.push(url);
+    if(onProgress) onProgress(url, r.ok);
+  }
+  return { failed, unverified };
+}
+
+// ---------------------------------------------------------------------
+// Lifecycle
+// ---------------------------------------------------------------------
+
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    // NOTE: deliberately not cache.addAll() — that is atomic, so one
+    // missing or blocked file would abort the entire install and leave
+    // the app with no offline support at all.
+    await cacheList(cache, ALL_ASSETS);
+    self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter(k => k !== STATIC_CACHE && k !== RUNTIME_CACHE)
+          .map(k => caches.delete(k))
+    );
+    await self.clients.claim();
+  })());
+});
+
+// ---------------------------------------------------------------------
+// Explicit "Download for offline use" from index.html
+// The page asks us to precache; we do it into STATIC_CACHE (so it survives
+// and is found by the status check) and report progress + any failures.
+// ---------------------------------------------------------------------
+self.addEventListener('message', event => {
+  const data = event.data || {};
+  if(data.type !== 'PRECACHE_ALL') return;
+  const port = event.ports && event.ports[0];
+  event.waitUntil((async () => {
+    try{
+      const cache = await caches.open(STATIC_CACHE);
+      const urls = ALL_ASSETS;
+      let done = 0;
+      const { failed, unverified } = await cacheList(cache, urls, () => {
+        done++;
+        if(port) port.postMessage({ type:'PROGRESS', done, total: urls.length });
+      });
+      if(port) port.postMessage({ type:'DONE', failed, unverified, total: urls.length });
+    }catch(e){
+      if(port) port.postMessage({ type:'DONE', failed:['(unexpected error) ' + (e && e.message)], unverified:[], total:0 });
+    }
+  })());
+});
+
+// ---------------------------------------------------------------------
+// Fetch
+// ---------------------------------------------------------------------
+
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  // HTML pages: try the network first (so edits show up while online),
+  // fall back to the cached copy the moment the network fails (offline).
+  if (req.mode === 'navigate' || req.destination === 'document') {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(req);
+        const cache = await caches.open(STATIC_CACHE);
+        cache.put(req, fresh.clone());
+        return fresh;
+      } catch (e) {
+        const cached = await caches.match(req, { ignoreSearch: true });
+        if (cached) return cached;
+        const home = await caches.match('./index.html');
+        return home || new Response(
+          '<h1>Offline</h1><p>This page has not been downloaded for offline use yet.</p>',
+          { headers: { 'Content-Type': 'text/html' } }
+        );
+      }
+    })());
+    return;
+  }
+
+  // Everything else (CDN libraries, fonts, icons, etc.): cache-first,
+  // then network — and remember whatever we fetch for next time.
+  // caches.match() searches every cache, so it finds both the app shell
+  // and anything picked up at runtime.
+  event.respondWith((async () => {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    try {
+      const sameOrigin = new URL(req.url).origin === self.location.origin;
+      const fresh = await fetch(req, sameOrigin ? {} : { mode: 'no-cors' });
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(req, fresh.clone());
+      return fresh;
+    } catch (e) {
+      return cached; // nothing we can do — not previously cached, no network
+    }
+  })());
+});
