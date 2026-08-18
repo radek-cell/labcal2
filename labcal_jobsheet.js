@@ -23,6 +23,7 @@
   var KEY_HANDOFF = 'labcal.jobsheet.handoff';
   var KEY_ROUTES  = 'labcal.jobsheet.routes';
   var KEY_PROGRESS = 'labcal.jobsheet.progress';
+  var KEY_EXTRA = 'labcal.jobsheet.extra';   // units added on site, per job
   var CHANGE_EVENT = 'labcal-jobsheet-changed';
 
   // ===================================================================
@@ -582,6 +583,89 @@
     return all[String(jobRef || '')] || {};
   }
 
+  // A unit that is not on site, or that the customer does not want done, is
+  // marked not required rather than left looking outstanding forever. It is
+  // recorded against the job so it survives reloading the jobsheet.
+  function setNotRequired(jobRef, serial, on, reason) {
+    var k = serialKey(serial);
+    if (!k) return;
+    var all = progressStore();
+    var job = all[String(jobRef || '')] || {};
+    var prev = job[k] || {};
+    if (on) {
+      job[k] = {
+        done: prev.done || false,
+        doneAt: prev.doneAt || '',
+        certRef: prev.certRef || '',
+        notRequired: true,
+        notRequiredAt: new Date().toISOString(),
+        reason: reason || ''
+      };
+    } else if (prev.notRequired) {
+      if (prev.done) {
+        job[k] = { done: true, doneAt: prev.doneAt, certRef: prev.certRef };
+      } else {
+        delete job[k];
+      }
+    }
+    all[String(jobRef || '')] = job;
+    writeJson(KEY_PROGRESS, all);
+    applyProgressToCurrent();
+    announce();
+  }
+
+  // ---- units added on site ------------------------------------------------
+  function extraStore() { return readJson(KEY_EXTRA, {}) || {}; }
+  function extrasFor(jobRef) { return extraStore()[String(jobRef || '')] || []; }
+
+  function addDevice(device) {
+    var js = current();
+    if (!js) return null;
+    var entry = {
+      model: String(device.model || '').trim(),
+      equipment: '',
+      serial: String(device.serial || '').trim(),
+      location: String(device.location || '').trim(),
+      addedManually: true,
+      addedAt: new Date().toISOString()
+    };
+    if (!entry.model && !entry.serial) return null;
+
+    var all = extraStore();
+    var list = all[String(js.callNumber || '')] || [];
+    var dupe = list.some(function (x) { return serialKey(x.serial) === serialKey(entry.serial) && serialKey(entry.serial); });
+    if (!dupe) { list.push(entry); all[String(js.callNumber || '')] = list; writeJson(KEY_EXTRA, all); }
+
+    var s2 = suggestSheet(entry);
+    js.devices.push({
+      idx: js.devices.length,
+      model: entry.model, equipment: '', serial: entry.serial, location: entry.location,
+      sheet: s2.sheet, sheetWhy: s2.why, suggested: s2.sheet,
+      done: false, doneAt: '', certRef: '', addedManually: true
+    });
+    writeJson(KEY_CURRENT, js);
+    announce();
+    return entry;
+  }
+
+  function removeDevice(idx) {
+    var js = current();
+    if (!js || !js.devices[idx]) return false;
+    var d = js.devices[idx];
+    if (!d.addedManually) return false;    // only hand-added units can be removed
+    var all = extraStore();
+    var list = (all[String(js.callNumber || '')] || []).filter(function (x) {
+      return serialKey(x.serial) !== serialKey(d.serial);
+    });
+    all[String(js.callNumber || '')] = list;
+    writeJson(KEY_EXTRA, all);
+    js.devices.splice(idx, 1);
+    js.devices.forEach(function (x, i) { x.idx = i; });
+    writeJson(KEY_CURRENT, js);
+    announce();
+    return true;
+  }
+
   function recordProgress(jobRef, serial, info) {
     var k = serialKey(serial);
     if (!k) return;
@@ -633,11 +717,20 @@
     var changed = false;
     js.devices.forEach(function (d) {
       var p = prog[serialKey(d.serial)];
-      if (p && p.done && !d.done) {
+      if (!p) {
+        if (d.notRequired) { d.notRequired = false; d.notRequiredReason = ''; changed = true; }
+        return;
+      }
+      if (p.done && !d.done) {
         d.done = true;
         d.doneAt = p.doneAt || '';
         d.certRef = d.certRef || p.certRef || '';
         d.carriedOver = true;   // certified before this worklist was loaded
+        changed = true;
+      }
+      if (!!p.notRequired !== !!d.notRequired) {
+        d.notRequired = !!p.notRequired;
+        d.notRequiredReason = p.reason || '';
         changed = true;
       }
     });
@@ -685,6 +778,22 @@
         };
       })
     };
+    // Units added by hand on an earlier visit belong to this job too, so put
+    // them back when the jobsheet is loaded again.
+    extrasFor(js.callNumber).forEach(function (x) {
+      var already = js.devices.some(function (d) {
+        return serialKey(d.serial) && serialKey(d.serial) === serialKey(x.serial);
+      });
+      if (already) return;
+      var sx = suggestSheet(x);
+      js.devices.push({
+        idx: js.devices.length,
+        model: x.model, equipment: '', serial: x.serial, location: x.location,
+        sheet: sx.sheet, sheetWhy: sx.why, suggested: sx.sheet,
+        done: false, doneAt: '', certRef: '', addedManually: true
+      });
+    });
+
     writeJson(KEY_CURRENT, js);
     // Same job, later day: bring yesterday's ticks back.
     applyProgressToCurrent();
@@ -727,8 +836,9 @@
   function progress() {
     var js = current();
     if (!js) return { total: 0, done: 0, today: 0, earlier: 0, started: 0 };
-    var today = todayIso(), out = { total: js.devices.length, done: 0, today: 0, earlier: 0, started: 0 };
+    var today = todayIso(), out = { total: js.devices.length, done: 0, today: 0, earlier: 0, started: 0, notRequired: 0, outstanding: 0 };
     js.devices.forEach(function (d) {
+      if (d.notRequired && !d.done) { out.notRequired++; return; }
       if (d.done) {
         out.done++;
         if (String(d.doneAt || '').slice(0, 10) === today) out.today++;
@@ -737,6 +847,7 @@
         out.started++;
       }
     });
+    out.outstanding = out.total - out.done - out.notRequired;
     return out;
   }
 
@@ -833,6 +944,10 @@
     isStarted: isStarted,
     progressFor: progressFor,
     recordProgress: recordProgress,
+    setNotRequired: setNotRequired,
+    addDevice: addDevice,
+    removeDevice: removeDevice,
+    extrasFor: extrasFor,
     clearProgress: clearProgress,
     reconcileFromCertificates: reconcileFromCertificates,
     applyProgressToCurrent: applyProgressToCurrent,

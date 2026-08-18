@@ -244,6 +244,33 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 }
 .jdev-tag.earlier{border:1px solid var(--cyan);color:var(--cyan)}
 .jdev-tag.started{border:1px solid var(--amber);color:var(--amber)}
+.jdev-tag.added{border:1px solid var(--cyan);color:var(--cyan)}
+.jdev-tag.notreq{border:1px solid #c0392b;color:#c0392b}
+.jdev.notreq{opacity:.55}
+.jdev.notreq .jdev-model{text-decoration:line-through}
+.jbtn.mini{padding:7px 10px;font-size:11.5px}
+.jbtn.cross{background:transparent;color:#b3392b;border:1px solid #e0a49c}
+.jbtn.cross:hover{background:#fdecea}
+.jobtools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 2px}
+.jobtools input.search{
+  flex:1;min-width:150px;font-family:var(--sans);font-size:12.5px;
+  padding:8px 11px;border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--ink);
+}
+.jobtools .count{font-family:var(--mono);font-size:10.5px;color:var(--muted-dim)}
+.addform{
+  display:none;gap:8px;flex-wrap:wrap;align-items:center;
+  margin-top:10px;padding:10px 12px;background:var(--bg2);
+  border:1px solid var(--border-soft);border-radius:7px;
+}
+.addform.open{display:flex}
+.addform input{
+  font-family:var(--sans);font-size:12.5px;padding:8px 10px;
+  border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--ink);
+}
+.addform input.model{width:130px}
+.addform input.serial{width:150px}
+.addform input.loc{flex:1;min-width:120px}
+.prog .ptrack i.notreq{background:var(--muted-dim)}
 .prog .split{color:var(--muted-dim)}
 .prog .ptrack i.started{background:var(--amber)}
 .ptrack{position:relative}
@@ -370,7 +397,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.36</span>
+    <span id="footYear">v1.37</span>
   </footer>
 
 </div>
@@ -542,7 +569,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.36 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.37 · ' + d.getFullYear();
 }
 
 
@@ -618,6 +645,7 @@ function bindRoutingFooter(){
   });
 }
 
+let jobFilter = '';
 function renderJobPanel(){
   if(!jobPanel || !window.LabCalJobsheet) return;
   const js = LabCalJobsheet.current();
@@ -640,6 +668,9 @@ function renderJobPanel(){
   }
 
   const p = LabCalJobsheet.progress();
+  const filter = jobFilter.trim().toLowerCase();
+  const matches = d => !filter || [d.model, d.equipment, d.serial, d.location]
+    .filter(Boolean).some(v => String(v).toLowerCase().includes(filter));
   const pct = p.total ? Math.round((p.done/p.total)*100) : 0;
   const startedPct = p.total ? Math.round(((p.done+p.started)/p.total)*100) : 0;
   // A job can run over several days: say how much of the tally is from
@@ -647,8 +678,10 @@ function renderJobPanel(){
   const split = [
     p.today ? `${p.today} today` : '',
     p.earlier ? `${p.earlier} on earlier days` : '',
-    p.started ? `${p.started} started` : ''
+    p.started ? `${p.started} started` : '',
+    p.notRequired ? `${p.notRequired} not required` : ''
   ].filter(Boolean).join(' · ');
+  const settledPct = p.total ? Math.round(((p.done + p.notRequired)/p.total)*100) : 0;
   const meta = [
     js.customer ? `<b>${jesc(js.customer)}</b>` : '',
     js.callNumber ? `Job ${jesc(js.callNumber)}` : '',
@@ -656,22 +689,29 @@ function renderJobPanel(){
     js.fileName ? jesc(js.fileName) : ''
   ].filter(Boolean).join(' · ');
 
+  const shown = js.devices.filter(matches);
   const rows = js.devices.map((d,i)=>{
+    if(!matches(d)) return '';
     const blocked = d.sheet ? sheetBlockedReason(d.sheet) : '';
     const whyText = d.sheetWhy==='learned' ? 'remembered' : (d.sheetWhy==='rule' ? 'matched' : '');
     return `
-    <div class="jdev${d.done?' done':''}">
+    <div class="jdev${d.done?' done':''}${d.notRequired&&!d.done?' notreq':''}">
       <div class="jdev-main">
         <div class="jdev-model">${d.done?'<span class="tick">✓</span>':''}${jesc(d.model||d.equipment||'(no model)')}${
           d.done && d.carriedOver ? '<span class="jdev-tag earlier">'+jesc(shortDay(d.doneAt))+'</span>' :
-          (!d.done && LabCalJobsheet.isStarted(js.callNumber, d) ? '<span class="jdev-tag started">started</span>' : '')
-        }</div>
-        <div class="jdev-meta">${jesc(d.serial||'no serial')}${d.location?' · '+jesc(d.location):''}${d.done&&d.certRef?' · cert '+jesc(d.certRef):''}${d.done&&d.doneAt?' · '+jesc(shortDay(d.doneAt)):''}</div>
+          (d.notRequired && !d.done ? '<span class="jdev-tag notreq">not required</span>' :
+          (!d.done && LabCalJobsheet.isStarted(js.callNumber, d) ? '<span class="jdev-tag started">started</span>' : ''))
+        }${d.addedManually ? '<span class="jdev-tag added">added on site</span>' : ''}</div>
+        <div class="jdev-meta">${jesc(d.serial||'no serial')}${d.location?' · '+jesc(d.location):''}${d.done&&d.certRef?' · cert '+jesc(d.certRef):''}${d.done&&d.doneAt?' · '+jesc(shortDay(d.doneAt)):''}${d.notRequired&&!d.done&&d.notRequiredReason?' · '+jesc(d.notRequiredReason):''}</div>
       </div>
       <div class="jdev-ctl">
         ${whyText?`<span class="why">${whyText}</span>`:''}
-        <select data-route="${i}" class="${d.sheet?'':'ask'}">${sheetOptions(d.sheet)}</select>
-        <button class="jbtn" type="button" data-open="${i}" ${(!d.sheet||blocked)?'disabled':''}>${d.done?'Reopen':'Open'}</button>
+        ${d.notRequired && !d.done ? '' : `<select data-route="${i}" class="${d.sheet?'':'ask'}">${sheetOptions(d.sheet)}</select>`}
+        ${d.notRequired && !d.done
+          ? `<button class="jbtn ghost mini" type="button" data-restore="${i}">Put back</button>`
+          : `<button class="jbtn" type="button" data-open="${i}" ${(!d.sheet||blocked)?'disabled':''}>${d.done?'Reopen':'Open'}</button>
+             ${d.done ? '' : `<button class="jbtn cross mini" type="button" data-skip="${i}" title="Not required — not on site, or customer declined">✕</button>`}`}
+        ${d.addedManually && !d.done ? `<button class="jbtn ghost mini" type="button" data-remove="${i}" title="Remove this added unit">Remove</button>` : ''}
       </div>
       ${blocked?`<div class="jdev-warn">${jesc(blocked)}</div>`:''}
     </div>`;
@@ -689,13 +729,27 @@ function renderJobPanel(){
       </div>
     </div>
     <div class="prog">
-      <span>${p.done} of ${p.total} done${split?` <span class="split">· ${split}</span>`:''}</span>
+      <span>${p.done} of ${p.total} done${p.outstanding?` · <b>${p.outstanding} left</b>`:' · all settled'}${split?` <span class="split">· ${split}</span>`:''}</span>
       <span class="ptrack">
+        <i class="layer notreq" style="width:${settledPct}%"></i>
         <i class="layer started" style="width:${startedPct}%"></i>
         <i class="layer" style="width:${pct}%"></i>
       </span>
     </div>
+    <div class="jobtools">
+      <input class="search" id="jobSearch" type="search" placeholder="Search serial, model or location…" value="${jesc(jobFilter)}">
+      <span class="count">${filter?`${shown.length} of ${js.devices.length}`:`${js.devices.length} unit${js.devices.length===1?'':'s'}`}</span>
+      <button class="jbtn ghost mini" type="button" id="jobAddBtn">+ Add unit</button>
+    </div>
+    <div class="addform" id="jobAddForm">
+      <input class="model" id="addModel" placeholder="Model">
+      <input class="serial" id="addSerial" placeholder="Serial number">
+      <input class="loc" id="addLoc" placeholder="Location / department">
+      <button class="jbtn mini" type="button" id="addConfirm">Add to job</button>
+      <button class="jbtn ghost mini" type="button" id="addCancel">Cancel</button>
+    </div>
     ${rows}
+    ${filter && !shown.length ? '<div class="jdev"><div class="jdev-main"><div class="jdev-meta">No unit matches that search.</div></div></div>' : ''}
     ${routingFooter()}`;
 
   if(setHtml(jobPanel, html)){
@@ -713,6 +767,61 @@ function renderJobPanel(){
     }));
     const rb = document.getElementById('jobReplaceBtn');
     if(rb) rb.addEventListener('click', ()=>jobFile.click());
+    // --- search ---
+    const search = document.getElementById('jobSearch');
+    if(search) search.addEventListener('input', ()=>{
+      jobFilter = search.value;
+      const at = search.selectionStart;
+      renderJobPanel();
+      const again = document.getElementById('jobSearch');
+      if(again){ again.focus(); try{ again.setSelectionRange(at, at); }catch(e){} }
+    });
+
+    // --- not required / put back ---
+    jobPanel.querySelectorAll('[data-skip]').forEach(btn=>btn.addEventListener('click',()=>{
+      const d = LabCalJobsheet.current().devices[Number(btn.getAttribute('data-skip'))];
+      const why = prompt(`Mark ${d.serial || d.model} as not required?\n\nOptional reason (not on site, customer declined, etc.):`, '');
+      if(why === null) return;                    // cancelled
+      LabCalJobsheet.setNotRequired(LabCalJobsheet.current().callNumber, d.serial, true, why);
+      renderJobPanel();
+    }));
+    jobPanel.querySelectorAll('[data-restore]').forEach(btn=>btn.addEventListener('click',()=>{
+      const d = LabCalJobsheet.current().devices[Number(btn.getAttribute('data-restore'))];
+      LabCalJobsheet.setNotRequired(LabCalJobsheet.current().callNumber, d.serial, false);
+      renderJobPanel();
+    }));
+
+    // --- units added on site ---
+    const addBtn = document.getElementById('jobAddBtn');
+    const addForm = document.getElementById('jobAddForm');
+    if(addBtn && addForm) addBtn.addEventListener('click', ()=>{
+      addForm.classList.toggle('open');
+      if(addForm.classList.contains('open')) document.getElementById('addModel').focus();
+    });
+    const addConfirm = document.getElementById('addConfirm');
+    if(addConfirm) addConfirm.addEventListener('click', ()=>{
+      const model = document.getElementById('addModel').value.trim();
+      const serial = document.getElementById('addSerial').value.trim();
+      const loc = document.getElementById('addLoc').value.trim();
+      if(!model && !serial){ alert('Enter at least a model or a serial number.'); return; }
+      const added = LabCalJobsheet.addDevice({model, serial, location: loc});
+      if(!added){ alert('That unit could not be added.'); return; }
+      jobFilter = '';
+      renderJobPanel();
+    });
+    const addCancel = document.getElementById('addCancel');
+    if(addCancel) addCancel.addEventListener('click', ()=>{
+      document.getElementById('jobAddForm').classList.remove('open');
+    });
+    jobPanel.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
+      const i = Number(btn.getAttribute('data-remove'));
+      const d = LabCalJobsheet.current().devices[i];
+      if(confirm(`Remove ${d.serial || d.model} from this job?\n\nOnly units added on site can be removed; jobsheet units stay.`)){
+        LabCalJobsheet.removeDevice(i);
+        renderJobPanel();
+      }
+    }));
+
     const cb = document.getElementById('jobClearBtn');
     if(cb) cb.addEventListener('click', ()=>{
       if(confirm('Clear the jobsheet worklist?\n\nProgress ticks are lost. Certificates already generated are not affected.')){

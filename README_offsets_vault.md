@@ -1,7 +1,36 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.36)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.37)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.37 — the worklist becomes a job control panel
+
+**Not required.** Every outstanding unit has a red **✕**. Press it and you are
+asked for an optional reason — not on site, customer declined — and the unit is
+struck off with a *not required* tag and the reason shown beneath it. It stops
+counting as outstanding but stays visible, and **Put back** undoes it. The mark
+is stored against the job, so it survives reloading the jobsheet tomorrow.
+
+**Add a unit on site.** *+ Add unit* takes a model, serial and location and adds
+it to the current job, tagged *added on site*. It routes itself to the right
+worksheet by the same rules as everything else, and it comes back when the
+jobsheet is loaded again. Only hand-added units can be removed; jobsheet units
+stay put.
+
+**Search.** A box filters by serial, model or location — useful once a job runs
+to a dozen units. The count beside it reads "3 of 14" while filtering.
+
+**Clearer progress.** The line now reads *"1 of 4 done · 2 left · 1 today ·
+1 not required"*, with **how many are left** in bold, since that is the number
+that matters when you are deciding whether you can leave site. The bar shows
+settled units in grey behind the green.
+
+### Bugs caught while building it
+
+Two, both found by testing the module directly before touching the interface:
+units added on site were lost when the jobsheet was reloaded, and undoing a
+*not required* mark left the unit still flagged, because clearing the mark
+removes the stored record and the code treated a missing record as "no change".
 
 ## v1.36 — main page tidied
 
@@ -699,13 +728,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v31**, caches all shared modules |
+| `sw.js` | Cache bumped to **v32**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v31, then hit **Refresh offline copy**.
+picks up v32, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
