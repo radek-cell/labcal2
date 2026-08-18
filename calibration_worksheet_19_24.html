@@ -1469,6 +1469,16 @@ function excelFileName(){ return pdfFileName().replace(/\.pdf$/,'.xlsx'); }
 // to load — otherwise the old ~1 MB settings come back silently.
 function pdfQualityLabel(){
   if(!window.LabCalPdf) return ' · ⚠ labcal_pdf.js not loaded — using old large-file settings';
+  if(LabCalPdf.style && LabCalPdf.style()==='text'){
+    // Say plainly when Text is selected but the files that do it are absent,
+    // rather than quietly producing the image version instead.
+    const missing=[];
+    if(!window.LabCalVectorPdf) missing.push('labcal_vector_pdf.js');
+    if(!window.jspdf) missing.push('jsPDF');
+    if(!window.LabCalDancingFont) missing.push('labcal_font_dancing.js');
+    if(missing.length) return ` · ⚠ Text selected but ${missing.join(', ')} did not load — using the image version`;
+    return ' · text certificate (~18 KB, selectable)';
+  }
   const p=LabCalPdf.current();
   return ` · quality: ${p.name} (${p.scale}×, q${p.quality})`;
 }

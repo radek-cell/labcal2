@@ -1,7 +1,31 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.23)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.24)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.24 — the Image/Text switch actually appears
+
+v1.23 shipped the text certificate generator but **not the control to turn it
+on** — the home page still showed only "Certificate PDF size" with Standard /
+High / Maximum. My fault, and worth recording how it happened.
+
+An earlier edit inserted a block of code after every occurrence of the text
+`renderPdfQuality();`. That string appears inside the function's own body as
+well as at the call site, so the block was inserted three times, nested inside
+itself. The file still parsed — the copies ended up in different scopes — so the
+syntax check passed. The v1.23 edit that was supposed to add the switch then
+failed to match the mangled text and did nothing, silently.
+
+Fixed: the duplicated blocks are stripped out and one clean copy is in place.
+The panel is now titled **Certificate PDF** with two dropdowns — style
+(Image / Text) and, for image mode, quality.
+
+Also corrected: the home page self-check was looking for
+`labcal_vector_pdf.js` and `labcal_font_dancing.js`, which only the 19/24
+worksheet loads, so it would have reported two missing files that were not
+missing. The home page now checks only what it loads; the worksheet checks its
+own two and says so in the hint beside the buttons if Text is selected but the
+files did not load.
 
 ## v1.23 — text certificates (19/24 Range)
 
@@ -389,13 +413,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v18**, caches all shared modules |
+| `sw.js` | Cache bumped to **v19**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v18, then hit **Refresh offline copy**.
+picks up v19, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

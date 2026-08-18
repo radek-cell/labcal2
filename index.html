@@ -439,7 +439,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.23</span>
+    <span id="footYear">v1.24</span>
   </footer>
 
 </div>
@@ -545,7 +545,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.23 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.24 · ' + d.getFullYear();
 }
 
 // ---- Fullscreen toggle (Android/desktop browsers; on iOS, use
@@ -986,87 +986,8 @@ function renderBackupPanel(){
 // Certificate PDF size. The worksheets are captured as an image, so scale
 // and JPEG quality decide the file size — see labcal_pdf.js.
 // ---------------------------------------------------------------------
-function renderPdfQuality(){
-  const el = document.getElementById('pdfQualityPanel');
-  if(!el || !window.LabCalPdf) return;
-  const cur = LabCalPdf.current();
-  const isText = LabCalPdf.style && LabCalPdf.style() === 'text';
-  const opts = Object.keys(LabCalPdf.PRESETS).map(k=>{
-    const p = LabCalPdf.PRESETS[k];
-    return `<option value="${p.id}"${p.id===cur.id?' selected':''}>${p.name}</option>`;
-  }).join('');
-  setHtml(el, `
-    <div>
-      <h4>Certificate PDF size</h4>
-      <div class="note">${cur.note} Each certificate's actual size is shown in the day panel on the calibration page.</div>
-    </div>
-    <select id="pdfQualitySel">${opts}</select>`);
-  const sel = document.getElementById('pdfQualitySel');
-  if(sel) sel.addEventListener('change', ()=>{ LabCalPdf.setPreset(sel.value); renderPdfQuality();
 
-// ---------------------------------------------------------------------
-// Module self-check. Each shared module degrades gracefully on its own,
-// which is right — but it also means a file that never got uploaded fails
-// silently. Missing labcal_pdf.js, for instance, quietly restores the old
-// ~1 MB certificates. Say so plainly instead.
-// ---------------------------------------------------------------------
-const APP_VERSION = 'v1.22';
-function runSelfCheck(){
-  const el = document.getElementById('selfCheck');
-  if(!el) return;
-  const expected = [
-    ['labcal_offsets.js', 'LabCalOffsets', 'probe offsets are remembered'],
-    ['labcal_jobsheet.js','LabCalJobsheet','jobsheet worklist and routing'],
-    ['labcal_save.js',    'LabCalSave',    'saving via the iPad share sheet'],
-    ['labcal_certs.js',   'LabCalCerts',   "the day's certificate list"],
-    ['labcal_units.js',   'LabCalUnits',   'reopening a unit to amend it'],
-    ['labcal_backup.js',  'LabCalBackup',  'backup and restore'],
-    ['labcal_pdf.js',     'LabCalPdf',     'smaller certificate PDFs']
-  ];
-  const missing = expected.filter(([,global])=>!window[global]);
-  if(!missing.length){ el.className='selfcheck'; return; }
-  el.className='selfcheck show';
-  el.innerHTML = `<b>⚠ ${missing.length} file${missing.length===1?'':'s'} did not load</b>`
-    + `Upload ${missing.length===1?'it':'them'} to the same folder as the pages, then open this page online and tap "Refresh offline copy".`
-    + '<ul style="margin:8px 0 0;padding-left:20px">'
-    + missing.map(([file,,what])=>`<li><code>${file}</code> — without it, ${what} will not work.</li>`).join('')
-    + '</ul>'
-    + `<div class="ver">Suite ${APP_VERSION}. If this page still shows an older version in the footer, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
-}
-runSelfCheck(); });
-}
-renderPdfQuality();
 
-// ---------------------------------------------------------------------
-// Module self-check. Each shared module degrades gracefully on its own,
-// which is right — but it also means a file that never got uploaded fails
-// silently. Missing labcal_pdf.js, for instance, quietly restores the old
-// ~1 MB certificates. Say so plainly instead.
-// ---------------------------------------------------------------------
-const APP_VERSION = 'v1.22';
-function runSelfCheck(){
-  const el = document.getElementById('selfCheck');
-  if(!el) return;
-  const expected = [
-    ['labcal_offsets.js', 'LabCalOffsets', 'probe offsets are remembered'],
-    ['labcal_jobsheet.js','LabCalJobsheet','jobsheet worklist and routing'],
-    ['labcal_save.js',    'LabCalSave',    'saving via the iPad share sheet'],
-    ['labcal_certs.js',   'LabCalCerts',   "the day's certificate list"],
-    ['labcal_units.js',   'LabCalUnits',   'reopening a unit to amend it'],
-    ['labcal_backup.js',  'LabCalBackup',  'backup and restore'],
-    ['labcal_pdf.js',     'LabCalPdf',     'smaller certificate PDFs']
-  ];
-  const missing = expected.filter(([,global])=>!window[global]);
-  if(!missing.length){ el.className='selfcheck'; return; }
-  el.className='selfcheck show';
-  el.innerHTML = `<b>⚠ ${missing.length} file${missing.length===1?'':'s'} did not load</b>`
-    + `Upload ${missing.length===1?'it':'them'} to the same folder as the pages, then open this page online and tap "Refresh offline copy".`
-    + '<ul style="margin:8px 0 0;padding-left:20px">'
-    + missing.map(([file,,what])=>`<li><code>${file}</code> — without it, ${what} will not work.</li>`).join('')
-    + '</ul>'
-    + `<div class="ver">Suite ${APP_VERSION}. If this page still shows an older version in the footer, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
-}
-runSelfCheck();
     }catch(e){
       alert('Could not build the backup.\n\n' + (e && e.message ? e.message : e));
     }finally{
@@ -1117,87 +1038,8 @@ if(restoreFileEl){
 // Certificate PDF size. The worksheets are captured as an image, so scale
 // and JPEG quality decide the file size — see labcal_pdf.js.
 // ---------------------------------------------------------------------
-function renderPdfQuality(){
-  const el = document.getElementById('pdfQualityPanel');
-  if(!el || !window.LabCalPdf) return;
-  const cur = LabCalPdf.current();
-  const isText = LabCalPdf.style && LabCalPdf.style() === 'text';
-  const opts = Object.keys(LabCalPdf.PRESETS).map(k=>{
-    const p = LabCalPdf.PRESETS[k];
-    return `<option value="${p.id}"${p.id===cur.id?' selected':''}>${p.name}</option>`;
-  }).join('');
-  setHtml(el, `
-    <div>
-      <h4>Certificate PDF size</h4>
-      <div class="note">${cur.note} Each certificate's actual size is shown in the day panel on the calibration page.</div>
-    </div>
-    <select id="pdfQualitySel">${opts}</select>`);
-  const sel = document.getElementById('pdfQualitySel');
-  if(sel) sel.addEventListener('change', ()=>{ LabCalPdf.setPreset(sel.value); renderPdfQuality();
 
-// ---------------------------------------------------------------------
-// Module self-check. Each shared module degrades gracefully on its own,
-// which is right — but it also means a file that never got uploaded fails
-// silently. Missing labcal_pdf.js, for instance, quietly restores the old
-// ~1 MB certificates. Say so plainly instead.
-// ---------------------------------------------------------------------
-const APP_VERSION = 'v1.22';
-function runSelfCheck(){
-  const el = document.getElementById('selfCheck');
-  if(!el) return;
-  const expected = [
-    ['labcal_offsets.js', 'LabCalOffsets', 'probe offsets are remembered'],
-    ['labcal_jobsheet.js','LabCalJobsheet','jobsheet worklist and routing'],
-    ['labcal_save.js',    'LabCalSave',    'saving via the iPad share sheet'],
-    ['labcal_certs.js',   'LabCalCerts',   "the day's certificate list"],
-    ['labcal_units.js',   'LabCalUnits',   'reopening a unit to amend it'],
-    ['labcal_backup.js',  'LabCalBackup',  'backup and restore'],
-    ['labcal_pdf.js',     'LabCalPdf',     'smaller certificate PDFs']
-  ];
-  const missing = expected.filter(([,global])=>!window[global]);
-  if(!missing.length){ el.className='selfcheck'; return; }
-  el.className='selfcheck show';
-  el.innerHTML = `<b>⚠ ${missing.length} file${missing.length===1?'':'s'} did not load</b>`
-    + `Upload ${missing.length===1?'it':'them'} to the same folder as the pages, then open this page online and tap "Refresh offline copy".`
-    + '<ul style="margin:8px 0 0;padding-left:20px">'
-    + missing.map(([file,,what])=>`<li><code>${file}</code> — without it, ${what} will not work.</li>`).join('')
-    + '</ul>'
-    + `<div class="ver">Suite ${APP_VERSION}. If this page still shows an older version in the footer, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
-}
-runSelfCheck(); });
-}
-renderPdfQuality();
 
-// ---------------------------------------------------------------------
-// Module self-check. Each shared module degrades gracefully on its own,
-// which is right — but it also means a file that never got uploaded fails
-// silently. Missing labcal_pdf.js, for instance, quietly restores the old
-// ~1 MB certificates. Say so plainly instead.
-// ---------------------------------------------------------------------
-const APP_VERSION = 'v1.22';
-function runSelfCheck(){
-  const el = document.getElementById('selfCheck');
-  if(!el) return;
-  const expected = [
-    ['labcal_offsets.js', 'LabCalOffsets', 'probe offsets are remembered'],
-    ['labcal_jobsheet.js','LabCalJobsheet','jobsheet worklist and routing'],
-    ['labcal_save.js',    'LabCalSave',    'saving via the iPad share sheet'],
-    ['labcal_certs.js',   'LabCalCerts',   "the day's certificate list"],
-    ['labcal_units.js',   'LabCalUnits',   'reopening a unit to amend it'],
-    ['labcal_backup.js',  'LabCalBackup',  'backup and restore'],
-    ['labcal_pdf.js',     'LabCalPdf',     'smaller certificate PDFs']
-  ];
-  const missing = expected.filter(([,global])=>!window[global]);
-  if(!missing.length){ el.className='selfcheck'; return; }
-  el.className='selfcheck show';
-  el.innerHTML = `<b>⚠ ${missing.length} file${missing.length===1?'':'s'} did not load</b>`
-    + `Upload ${missing.length===1?'it':'them'} to the same folder as the pages, then open this page online and tap "Refresh offline copy".`
-    + '<ul style="margin:8px 0 0;padding-left:20px">'
-    + missing.map(([file,,what])=>`<li><code>${file}</code> — without it, ${what} will not work.</li>`).join('')
-    + '</ul>'
-    + `<div class="ver">Suite ${APP_VERSION}. If this page still shows an older version in the footer, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
-}
-runSelfCheck();
     }catch(e){
       alert('The restore did not finish.\n\n' + (e && e.message ? e.message : e));
     }
@@ -1210,44 +1052,67 @@ renderBackupPanel();
 // Certificate PDF size. The worksheets are captured as an image, so scale
 // and JPEG quality decide the file size — see labcal_pdf.js.
 // ---------------------------------------------------------------------
+
+
+
+// ---------------------------------------------------------------------
+// Certificate PDF: how it is drawn, and how big it comes out.
+// ---------------------------------------------------------------------
 function renderPdfQuality(){
   const el = document.getElementById('pdfQualityPanel');
   if(!el || !window.LabCalPdf) return;
   const cur = LabCalPdf.current();
-  const isText = LabCalPdf.style && LabCalPdf.style() === 'text';
+  const isText = !!(LabCalPdf.style && LabCalPdf.style() === 'text');
   const opts = Object.keys(LabCalPdf.PRESETS).map(k=>{
     const p = LabCalPdf.PRESETS[k];
     return `<option value="${p.id}"${p.id===cur.id?' selected':''}>${p.name}</option>`;
   }).join('');
+  const note = isText
+    ? 'Drawn as real text — about 18 KB, selectable and searchable. <b>19/24 Range worksheet only</b>; the others still use the image version.'
+    : `${cur.note} Each certificate's actual size is shown in the day panel on the calibration page.`;
   setHtml(el, `
     <div>
-      <h4>Certificate PDF size</h4>
-      <div class="note">${cur.note} Each certificate's actual size is shown in the day panel on the calibration page.</div>
+      <h4>Certificate PDF</h4>
+      <div class="note">${note}</div>
     </div>
-    <select id="pdfQualitySel">${opts}</select>`);
-  const sel = document.getElementById('pdfQualitySel');
-  if(sel) sel.addEventListener('change', ()=>{ LabCalPdf.setPreset(sel.value); renderPdfQuality();
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="pdfStyleSel">
+        <option value="image"${isText?'':' selected'}>Image (all worksheets)</option>
+        <option value="text"${isText?' selected':''}>Text (19/24 Range)</option>
+      </select>
+      ${isText ? '' : `<select id="pdfQualitySel">${opts}</select>`}
+    </div>`);
+  const styleSel = document.getElementById('pdfStyleSel');
+  if(styleSel) styleSel.addEventListener('change', ()=>{
+    LabCalPdf.setStyle(styleSel.value);
+    renderPdfQuality();
+  });
+  const qSel = document.getElementById('pdfQualitySel');
+  if(qSel) qSel.addEventListener('change', ()=>{
+    LabCalPdf.setPreset(qSel.value);
+    renderPdfQuality();
+  });
+}
 
 // ---------------------------------------------------------------------
 // Module self-check. Each shared module degrades gracefully on its own,
 // which is right — but it also means a file that never got uploaded fails
-// silently. Missing labcal_pdf.js, for instance, quietly restores the old
-// ~1 MB certificates. Say so plainly instead.
+// silently. Say so plainly instead.
 // ---------------------------------------------------------------------
-const APP_VERSION = 'v1.22';
+const APP_VERSION = 'v1.24';
 function runSelfCheck(){
   const el = document.getElementById('selfCheck');
   if(!el) return;
   const expected = [
-    ['labcal_offsets.js', 'LabCalOffsets', 'probe offsets are remembered'],
-    ['labcal_jobsheet.js','LabCalJobsheet','jobsheet worklist and routing'],
-    ['labcal_save.js',    'LabCalSave',    'saving via the iPad share sheet'],
-    ['labcal_certs.js',   'LabCalCerts',   "the day's certificate list"],
-    ['labcal_units.js',   'LabCalUnits',   'reopening a unit to amend it'],
-    ['labcal_backup.js',  'LabCalBackup',  'backup and restore'],
-    ['labcal_pdf.js',     'LabCalPdf',     'smaller certificate PDFs']
+    ['labcal_offsets.js',      'LabCalOffsets',     'probe offsets are remembered'],
+    ['labcal_jobsheet.js',     'LabCalJobsheet',    'jobsheet worklist and routing'],
+    ['labcal_save.js',         'LabCalSave',        'saving via the iPad share sheet'],
+    ['labcal_certs.js',        'LabCalCerts',       "the day's certificate list"],
+    ['labcal_units.js',        'LabCalUnits',       'reopening a unit to amend it'],
+    ['labcal_backup.js',       'LabCalBackup',      'backup and restore'],
+    ['labcal_pdf.js',          'LabCalPdf',         'certificate size and style settings']
   ];
-  const missing = expected.filter(([,global])=>!window[global]);
+  const missing = expected.filter(([,g])=>!window[g]);
   if(!missing.length){ el.className='selfcheck'; return; }
   el.className='selfcheck show';
   el.innerHTML = `<b>⚠ ${missing.length} file${missing.length===1?'':'s'} did not load</b>`
@@ -1255,41 +1120,10 @@ function runSelfCheck(){
     + '<ul style="margin:8px 0 0;padding-left:20px">'
     + missing.map(([file,,what])=>`<li><code>${file}</code> — without it, ${what} will not work.</li>`).join('')
     + '</ul>'
-    + `<div class="ver">Suite ${APP_VERSION}. If this page still shows an older version in the footer, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
+    + `<div class="ver">Suite ${APP_VERSION}. If the footer still shows an older version, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
 }
-runSelfCheck(); });
-}
+
 renderPdfQuality();
-
-// ---------------------------------------------------------------------
-// Module self-check. Each shared module degrades gracefully on its own,
-// which is right — but it also means a file that never got uploaded fails
-// silently. Missing labcal_pdf.js, for instance, quietly restores the old
-// ~1 MB certificates. Say so plainly instead.
-// ---------------------------------------------------------------------
-const APP_VERSION = 'v1.22';
-function runSelfCheck(){
-  const el = document.getElementById('selfCheck');
-  if(!el) return;
-  const expected = [
-    ['labcal_offsets.js', 'LabCalOffsets', 'probe offsets are remembered'],
-    ['labcal_jobsheet.js','LabCalJobsheet','jobsheet worklist and routing'],
-    ['labcal_save.js',    'LabCalSave',    'saving via the iPad share sheet'],
-    ['labcal_certs.js',   'LabCalCerts',   "the day's certificate list"],
-    ['labcal_units.js',   'LabCalUnits',   'reopening a unit to amend it'],
-    ['labcal_backup.js',  'LabCalBackup',  'backup and restore'],
-    ['labcal_pdf.js',     'LabCalPdf',     'smaller certificate PDFs']
-  ];
-  const missing = expected.filter(([,global])=>!window[global]);
-  if(!missing.length){ el.className='selfcheck'; return; }
-  el.className='selfcheck show';
-  el.innerHTML = `<b>⚠ ${missing.length} file${missing.length===1?'':'s'} did not load</b>`
-    + `Upload ${missing.length===1?'it':'them'} to the same folder as the pages, then open this page online and tap "Refresh offline copy".`
-    + '<ul style="margin:8px 0 0;padding-left:20px">'
-    + missing.map(([file,,what])=>`<li><code>${file}</code> — without it, ${what} will not work.</li>`).join('')
-    + '</ul>'
-    + `<div class="ver">Suite ${APP_VERSION}. If this page still shows an older version in the footer, the browser is serving a cached copy — tap "Refresh offline copy" and close every tab of this site.</div>`;
-}
 runSelfCheck();
 
 renderVault();
