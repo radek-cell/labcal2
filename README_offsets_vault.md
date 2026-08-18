@@ -1,7 +1,35 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.28)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.29)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.29 — failures now show as failures on the 19/24 certificate
+
+A real bug, and a bad one on a calibration document: **the text certificate
+painted the Difference of Average row green and the status banner green
+regardless of the result.** A unit that failed on screen — red row, red banner,
+adjustment required — printed as though it had passed.
+
+The cause was mine: I hard-coded those colours instead of reading what the
+worksheet had already decided. The generator now takes the state from the
+worksheet's own `ok`/`bad` classes, so the certificate cannot disagree with the
+screen:
+
+- **Difference of Average** is tinted per column (Air and Load can differ), red
+  when out of tolerance, green when in.
+- **Status banners** go red with red text when the worksheet says adjustment is
+  required, and carry the worksheet's own wording.
+- **The high/low markers** (blue on the highest corrected maximum, green on the
+  lowest corrected minimum) now read the worksheet's `selectedHigh` and
+  `selectedLow` flags rather than being recalculated here.
+- **The As Left section** takes its crossed-out state from the worksheet's
+  `notNeeded` flag. Previously it inferred it from whether readings had been
+  typed, so a sheet needing adjustment but not yet filled in printed as
+  crossed out.
+
+Verified both ways: in tolerance (green throughout, As Left crossed out) and
+out of tolerance (red banner, red difference row, As Left live and awaiting
+readings).
 
 ## v1.28 — no timestamp, and Barkey matched to the 19/24 layout
 
@@ -508,13 +536,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v23**, caches all shared modules |
+| `sw.js` | Cache bumped to **v24**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v23, then hit **Refresh offline copy**.
+picks up v24, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

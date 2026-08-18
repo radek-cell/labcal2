@@ -70,6 +70,24 @@
 
   function dash(v) { return v === '' || v == null ? '\u2013N/A\u2013' : String(v); }
 
+  // The worksheet already decides pass/fail and paints the cell. Read that
+  // rather than recomputing the tolerance here, so the certificate can never
+  // disagree with what is on screen.
+  function stateOf(id) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    if (el.classList.contains('bad')) return 'bad';
+    if (el.classList.contains('ok')) return 'ok';
+    return null;
+  }
+
+  var RED_BG = [255, 226, 226];
+  var RED_BD = [214, 150, 150];
+  var RED_TX = [140, 30, 30];
+  function tintFor(state) {
+    return state === 'bad' ? RED_BG : (state === 'ok' ? GREEN_BG : null);
+  }
+
   // The built-in PDF fonts cover Latin-1 only; anything else (ticks, arrows)
   // comes out as a stray glyph. Drop it rather than print rubbish.
   // jsPDF's standard fonts use WinAnsi, which DOES include en/em dashes and
@@ -334,29 +352,35 @@
     ctLine(y + RT_H, 'Initial offsets', val('initialOffsetsCal1'), val('initialOffsetsCal2'),
            'Initial set point', val('initialSetpoint'),
            nearest && nearest !== '\u2014' ? 'Nearest offset point used: ' + nearest : '', false);
-    function alHasReadings() {
+    // The worksheet marks the As Left table 'notNeeded' when no adjustment is
+    // required. Read that flag rather than inferring it from whether readings
+    // happen to have been typed yet — otherwise a sheet that needs adjusting
+    // but has not been filled in prints as though it were crossed out.
+    function alNotNeeded() {
+      var t = document.getElementById('alTable');
+      if (t) return t.classList.contains('notNeeded');
       var ids = ['al_air_display', 'al_load_display',
-                 'al_air1_max', 'al_air2_max', 'al_load1_max', 'al_load2_max',
-                 'al_air1_min', 'al_air2_min', 'al_load1_min', 'al_load2_min'];
-      return ids.some(function (id) {
+                 'al_air1_max', 'al_air2_max', 'al_load1_max', 'al_load2_max'];
+      return !ids.some(function (id) {
         var v = val(id);
-        return v !== '' && !isNaN(parseFloat(v));
+        return v !== '' && v !== '-N/A-' && !isNaN(parseFloat(v));
       });
     }
-    var alDone = alHasReadings();
+    var alDone = !alNotNeeded();
     ctLine(y + RT_H + CT_ROW, 'Final offsets',
            alDone ? val('finalOffsetsCal1') : 'N/A', alDone ? val('finalOffsetsCal2') : 'N/A',
            'Final set point', alDone ? val('finalSetpoint') : '\u2013N/A\u2013', '', !alDone);
     y += blockH + 2.5;
 
     // ---------------- status banner ----------------
-    function banner(text, h, size) {
-      e.box(MX, y, IN, h, GREEN_BG, GREEN_BD, 0.2);
-      e.t(text, MX + 3, y + h - 2, size || 8, 'bold', GREEN_TX);
+    function banner(text, h, size, bad) {
+      e.box(MX, y, IN, h, bad ? RED_BG : GREEN_BG, bad ? RED_BD : GREEN_BD, 0.2);
+      e.t(text, MX + 3, y + h - 2, size || 8, 'bold', bad ? RED_TX : GREEN_TX);
       y += h + 1.6;
     }
     var afStatus = txtOf('afStatus');
-    banner(afStatus || 'As Found: within tolerance.', 6, 7.8);
+    var afBad = stateOf('afStatus') === 'bad';
+    banner(afStatus || 'As Found: within tolerance.', 6, 7.8, afBad);
 
     // ---------------- measurement tables ----------------
     var TLAB = 40, COL = (IN - TLAB) / 4;
@@ -391,10 +415,11 @@
       var lines = Array.isArray(label) ? label : [label];
       e.box(MX, top, IN, h, [255, 255, 255], null);
       // tints
-      if (opt.tint) {
+      if (opt.tint || opt.tints) {
         if (opt.merged) {
-          [[0, 2], [2, 2]].forEach(function (sp) {
-            e.box(MX + TLAB + sp[0] * COL + 0.2, top + 0.2, sp[1] * COL - 0.4, h - 0.4, opt.tint, null);
+          [[0, 2], [2, 2]].forEach(function (sp, si) {
+            var t = opt.tints ? opt.tints[si] : opt.tint;
+            if (t) e.box(MX + TLAB + sp[0] * COL + 0.2, top + 0.2, sp[1] * COL - 0.4, h - 0.4, t, null);
           });
         } else {
           for (var i = 0; i < 4; i++) e.box(MX + TLAB + i * COL + 0.2, top + 0.2, COL - 0.4, h - 0.4, opt.tint, null);
@@ -454,6 +479,16 @@
 
     // which corrected max/min were used (the blue and green underlines)
     function markers(prefix, key) {
+      // The worksheet tags the corrected values it actually used.
+      var flagged = {};
+      ['air1', 'air2', 'load1', 'load2'].forEach(function (col, i) {
+        var el = document.getElementById(prefix + '_' + col + '_' + key + '_calc');
+        if (!el) return;
+        if (el.classList.contains('selectedHigh')) flagged[i] = 'blue';
+        if (el.classList.contains('selectedLow')) flagged[i] = 'green';
+      });
+      if (Object.keys(flagged).length) return flagged;
+      // fall back to working it out, for a sheet that has not been recalculated
       var ids = [prefix + '_air1_' + key + '_calc', prefix + '_air2_' + key + '_calc',
                  prefix + '_load1_' + key + '_calc', prefix + '_load2_' + key + '_calc'];
       var nums = ids.map(function (id) {
@@ -507,17 +542,21 @@
       trow(['Difference of Average', 'Reference vs Display'],
            [txtOf(prefix + '_air_diff') || val(prefix + '_air_diff'),
             txtOf(prefix + '_load_diff') || val(prefix + '_load_diff')],
-           { merged: true, bold: true, h: 6.2, tint: greyed ? GREY_BG : GREEN_BG, grey: greyed });
+           { merged: true, bold: true, h: 6.2, grey: greyed,
+             tints: greyed ? [GREY_BG, GREY_BG]
+                           : [tintFor(stateOf(prefix + '_air_diff')),
+                              tintFor(stateOf(prefix + '_load_diff'))] });
     }
 
     measurementTable('af', 'As Found (AF)', false);
     y += 1.6;
 
     var adjNeeded = alDone;
-    banner(adjNeeded
+    var alTxt = txtOf('alStatus');
+    banner(alTxt || (adjNeeded
       ? 'Adjustment carried out \u2014 see the As Left readings below.'
-      : 'Adjustment not needed \u2014 Air and Load are within tolerance, so As Left and AL Display cycle are crossed out.',
-      6, 7.6);
+      : 'Adjustment not needed \u2014 Air and Load are within tolerance, so As Left and AL Display cycle are crossed out.'),
+      6, 7.6, stateOf('alStatus') === 'bad');
 
     measurementTable('al', 'As Left (AL)', !adjNeeded);
     y += 2;
