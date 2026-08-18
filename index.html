@@ -106,11 +106,11 @@ body.is-fullscreen .fsbtn .icon-exit{display:block}
 }
 
 /* ---- hero ---- */
-.hero{position:relative;padding:56px 0 40px;overflow:hidden}
-.trace{position:absolute;top:10px;right:-40px;width:560px;max-width:60%;opacity:.28;pointer-events:none}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--cyan);text-transform:uppercase;margin:0 0 14px}
-h1{font-size:clamp(30px,4.4vw,50px);line-height:1.1;margin:0 0 16px;font-weight:700;letter-spacing:-.5px;max-width:14ch}
-.lede{color:var(--muted);font-size:16px;line-height:1.6;max-width:52ch;margin:0}
+.hero{position:relative;padding:22px 0 18px;overflow:hidden}
+.trace{position:absolute;top:-6px;right:-40px;width:460px;max-width:46%;opacity:.22;pointer-events:none}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:1.8px;color:var(--cyan);text-transform:uppercase;margin:0 0 6px}
+h1{font-size:clamp(22px,3vw,32px);line-height:1.15;margin:0 0 6px;font-weight:700;letter-spacing:-.5px;max-width:26ch}
+.lede{color:var(--muted);font-size:13.5px;line-height:1.5;max-width:62ch;margin:0}
 @media (max-width:620px){
   .hero{padding:36px 0 28px}
   .trace{opacity:.18;width:300px;top:-10px;right:-60px}
@@ -161,20 +161,25 @@ h1{font-size:clamp(30px,4.4vw,50px);line-height:1.1;margin:0 0 16px;font-weight:
 .vaultwarn.critical{animation:vaultPulse 1.6s infinite}
 @keyframes vaultPulse{0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,.28)}50%{box-shadow:0 0 0 7px rgba(192,57,43,0)}}
 
-.vault{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:38px}
-@media (max-width:700px){.vault{grid-template-columns:1fr;gap:12px}}
+.vault{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:22px}
+@media (max-width:820px){.vault{grid-template-columns:1fr;gap:10px}}
 .slot{
   background:var(--panel);border:1px solid var(--border);border-radius:8px;
-  padding:18px 20px 16px;box-shadow:0 1px 3px rgba(20,30,40,.06);
-  display:flex;flex-direction:column;
+  padding:12px 14px;box-shadow:0 1px 3px rgba(20,30,40,.06);
+  display:grid;grid-template-columns:1fr auto;grid-template-areas:'head count' 'meta count' 'act act';
+  column-gap:14px;align-items:start;
 }
+.slot .slot-top{grid-area:head}
+.slot .countdown{grid-area:count;text-align:right;margin:0;align-self:center}
+.slot .slot-meta{grid-area:meta}
+.slot .slot-actions{grid-area:act}
 .slot.lvl-none{border-style:dashed}
 .slot.lvl-ok{border-color:var(--cyan-dim)}
 .slot.lvl-soon{border-color:var(--amber-dim)}
 .slot.lvl-critical,.slot.lvl-expired{border-color:#e0a49c;background:#fffaf9}
 .slot-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.slot h4{font-size:16px;margin:12px 0 4px;font-weight:650;letter-spacing:-.2px}
-.slot .used{font-family:var(--mono);font-size:10.5px;color:var(--muted-dim);line-height:1.5}
+.slot h4{font-size:14px;margin:6px 0 2px;font-weight:650;letter-spacing:-.2px}
+.slot .used{font-family:var(--mono);font-size:9.5px;color:var(--muted-dim);line-height:1.4}
 .pill{
   font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.6px;
   padding:4px 9px;border-radius:3px;white-space:nowrap;text-transform:uppercase;
@@ -186,26 +191,26 @@ h1{font-size:clamp(30px,4.4vw,50px);line-height:1.1;margin:0 0 16px;font-weight:
 .pill.expired{animation:pillBlink 1.4s infinite}
 @keyframes pillBlink{0%,100%{opacity:1}50%{opacity:.5}}
 
-.countdown{margin:14px 0 6px}
-.countdown .num{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1}
-.countdown .num small{font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--muted);margin-left:6px}
+.countdown{margin:0}
+.countdown .num{font-family:var(--mono);font-size:23px;font-weight:700;letter-spacing:-.5px;line-height:1;white-space:nowrap}
+.countdown .num small{display:block;font-size:9.5px;font-weight:600;letter-spacing:.4px;color:var(--muted);margin-top:2px}
 .slot.lvl-ok .countdown .num{color:var(--green)}
 .slot.lvl-soon .countdown .num{color:var(--amber)}
 .slot.lvl-critical .countdown .num,.slot.lvl-expired .countdown .num{color:#c0392b}
-.track{height:5px;border-radius:3px;background:var(--bg2);border:1px solid var(--border-soft);margin-top:9px;overflow:hidden}
+.track{height:4px;border-radius:3px;background:var(--bg2);border:1px solid var(--border-soft);margin-top:6px;overflow:hidden;min-width:110px}
 .track i{display:block;height:100%;background:var(--green)}
 .slot.lvl-soon .track i{background:var(--amber)}
 .slot.lvl-critical .track i,.slot.lvl-expired .track i{background:#c0392b}
 
 .slot-meta{
-  margin:12px 0 0;padding-top:12px;border-top:1px solid var(--border-soft);
-  font-size:12px;color:var(--muted);line-height:1.75;flex:1;
+  margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border-soft);
+  font-size:11px;color:var(--muted);line-height:1.6;
 }
 .slot-meta span{font-family:var(--mono);color:var(--ink)}
-.slot-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.slot-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .sbtn{
-  font-family:var(--sans);font-size:12.5px;font-weight:650;color:#fff;
-  background:var(--cyan);border:none;border-radius:6px;padding:9px 15px;cursor:pointer;
+  font-family:var(--sans);font-size:12px;font-weight:650;color:#fff;
+  background:var(--cyan);border:none;border-radius:6px;padding:7px 13px;cursor:pointer;
   -webkit-tap-highlight-color:transparent;transition:background .15s ease;
 }
 .sbtn:hover{background:#0c7a70}
@@ -213,10 +218,31 @@ h1{font-size:clamp(30px,4.4vw,50px);line-height:1.1;margin:0 0 16px;font-weight:
 .sbtn.ghost:hover{color:#c0392b;border-color:#e0a49c;background:transparent}
 @media (max-width:620px){.sbtn{flex:1;text-align:center}}
 
+/* ---- settings drawer ---- */
+.setbar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin:0 0 14px;
+}
+.setbtn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11.5px;font-weight:650;letter-spacing:.3px;
+  color:var(--muted);background:var(--panel);border:1px solid var(--border);
+  border-radius:7px;padding:9px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.setbtn:hover{border-color:var(--cyan-dim);color:var(--cyan)}
+.setbtn svg{width:14px;height:14px;transition:transform .18s ease}
+.setbtn[aria-expanded="true"] svg.chev{transform:rotate(180deg)}
+.setbar .hint{font-family:var(--mono);font-size:10.5px;color:var(--muted-dim)}
+.setbar .hint b{color:var(--ink);font-weight:600}
+.setbar .hint.due{color:#a9690a}
+.setbar .hint.overdue{color:#c0392b;font-weight:700}
+#settingsDrawer{display:none}
+#settingsDrawer.open{display:block}
+
 /* ---- backup & restore ---- */
 .backup{
   background:var(--panel);border:1px solid var(--border);border-radius:8px;
-  padding:16px 18px;margin:0 0 38px;box-shadow:0 1px 3px rgba(20,30,40,.06);
+  padding:14px 16px;margin:0 0 10px;box-shadow:0 1px 3px rgba(20,30,40,.06);
 }
 .backup.warn{border-color:var(--amber-dim);background:#fffdf7}
 .backup.stale{border-color:#e0a49c;background:#fffaf9}
@@ -253,7 +279,7 @@ h1{font-size:clamp(30px,4.4vw,50px);line-height:1.1;margin:0 0 16px;font-weight:
 /* ---- PDF quality ---- */
 .pdfq{
   background:var(--panel);border:1px solid var(--border);border-radius:8px;
-  padding:14px 18px;margin:0 0 38px;box-shadow:0 1px 3px rgba(20,30,40,.06);
+  padding:12px 16px;margin:0 0 24px;box-shadow:0 1px 3px rgba(20,30,40,.06);
   display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
 }
 .pdfq h4{font-size:14.5px;margin:0;font-weight:650;letter-spacing:-.2px}
@@ -276,7 +302,7 @@ h1{font-size:clamp(30px,4.4vw,50px);line-height:1.1;margin:0 0 16px;font-weight:
 
 /* ---- section label ---- */
 .section-label{
-  display:flex;align-items:center;gap:14px;margin:8px 0 22px;
+  display:flex;align-items:center;gap:14px;margin:4px 0 14px;
   font-family:var(--mono);font-size:12px;letter-spacing:1.5px;color:var(--muted-dim);text-transform:uppercase;
 }
 .section-label::after{content:"";flex:1;height:1px;background:var(--border-soft)}
@@ -405,8 +431,8 @@ footer{
       </g>
     </svg>
     <p class="eyebrow">Offline calibration toolkit</p>
-    <h1>One ecosystem,<br>every calibration tool.</h1>
-    <p class="lede">Pick an area to work in — calibration worksheets, or the supporting tools and utilities. Everything runs on this device, fully offline.</p>
+    <h1>One ecosystem, every calibration tool.</h1>
+    <p class="lede">Calibration worksheets and supporting tools. Everything runs on this device, fully offline.</p>
 
     <div class="offlinebox" id="offlinebox">
       <div class="offlinebox-text">
@@ -428,10 +454,20 @@ footer{
 
   <div class="selfcheck" id="selfCheck"></div>
 
-  <div class="backup" id="backupPanel"></div>
-  <input id="restoreFile" type="file" accept="application/json,.json" style="display:none">
+  <div class="setbar">
+    <button class="setbtn" type="button" id="settingsToggle" aria-expanded="false" aria-controls="settingsDrawer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      Settings
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <span class="hint" id="settingsHint"></span>
+  </div>
 
-  <div class="pdfq" id="pdfQualityPanel"></div>
+  <div id="settingsDrawer">
+    <div class="backup" id="backupPanel"></div>
+    <div class="pdfq" id="pdfQualityPanel"></div>
+  </div>
+  <input id="restoreFile" type="file" accept="application/json,.json" style="display:none">
 
   <div class="section-label">Step 2 — choose an area</div>
 
@@ -439,7 +475,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.35</span>
+    <span id="footYear">v1.36</span>
   </footer>
 
 </div>
@@ -545,7 +581,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.35 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.36 · ' + d.getFullYear();
 }
 
 // ---- Fullscreen toggle (Android/desktop browsers; on iOS, use
@@ -981,6 +1017,7 @@ function renderBackupPanel(){
       LabCalBackup.markBackedUp();
       lastRestoreReport = `Backup ready — <b>${fmtBytes(blob.size)}</b>, covering ${pack.certificates.length} certificate record${pack.certificates.length===1?'':'s'}. Save it somewhere off this iPad.`;
       renderBackupPanel();
+      if(typeof renderSettingsHint === 'function') renderSettingsHint();
 
 // ---------------------------------------------------------------------
 // Certificate PDF size. The worksheets are captured as an image, so scale
@@ -1086,6 +1123,7 @@ function renderPdfQuality(){
   if(styleSel) styleSel.addEventListener('change', ()=>{
     LabCalPdf.setStyle(styleSel.value);
     renderPdfQuality();
+    if(typeof renderSettingsHint === 'function') renderSettingsHint();
   });
   const qSel = document.getElementById('pdfQualitySel');
   if(qSel) qSel.addEventListener('change', ()=>{
@@ -1099,7 +1137,7 @@ function renderPdfQuality(){
 // which is right — but it also means a file that never got uploaded fails
 // silently. Say so plainly instead.
 // ---------------------------------------------------------------------
-const APP_VERSION = 'v1.35';
+const APP_VERSION = 'v1.36';
 function runSelfCheck(){
   const el = document.getElementById('selfCheck');
   if(!el) return;
@@ -1125,6 +1163,52 @@ function runSelfCheck(){
 
 renderPdfQuality();
 runSelfCheck();
+
+// ---------------------------------------------------------------------
+// Settings drawer. The PDF and backup panels are things you set once and
+// leave alone, so they fold away — but the backup age still shows on the
+// button line, because that is the one setting that goes stale silently.
+// ---------------------------------------------------------------------
+const SETTINGS_KEY = 'labcal.ui.settingsOpen';
+function renderSettingsHint(){
+  const hint = document.getElementById('settingsHint');
+  if(!hint || !window.LabCalBackup) return;
+  const days = LabCalBackup.daysSinceBackup();
+  let cls = '', text;
+  if(days === null){ cls = 'due'; text = 'Never backed up on this device'; }
+  else if(days === 0) text = 'Backed up <b>today</b>';
+  else if(days <= 3) text = `Backed up <b>${days} day${days===1?'':'s'} ago</b>`;
+  else if(days <= 7){ cls = 'due'; text = `Backed up <b>${days} days ago</b>`; }
+  else { cls = 'overdue'; text = `Backed up <b>${days} days ago</b> — browser storage clears after about a week`; }
+  const style = (window.LabCalPdf && LabCalPdf.style && LabCalPdf.style() === 'text') ? 'text' : 'image';
+  hint.className = 'hint ' + cls;
+  hint.innerHTML = `${text} &nbsp;·&nbsp; certificates: <b>${style === 'text' ? 'text' : 'image'}</b>`;
+}
+
+function setSettingsOpen(open){
+  const drawer = document.getElementById('settingsDrawer');
+  const btn = document.getElementById('settingsToggle');
+  if(!drawer || !btn) return;
+  drawer.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  try{ localStorage.setItem(SETTINGS_KEY, open ? '1' : '0'); }catch(e){}
+}
+
+(function initSettings(){
+  const btn = document.getElementById('settingsToggle');
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    const drawer = document.getElementById('settingsDrawer');
+    setSettingsOpen(!drawer.classList.contains('open'));
+  });
+  let open = false;
+  try{ open = localStorage.getItem(SETTINGS_KEY) === '1'; }catch(e){}
+  // A backup that is a week overdue is worth opening the drawer for.
+  const days = window.LabCalBackup ? LabCalBackup.daysSinceBackup() : null;
+  if(days === null || days > 7) open = true;
+  setSettingsOpen(open);
+  renderSettingsHint();
+})();
 
 renderVault();
 renderCards();

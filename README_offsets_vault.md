@@ -1,7 +1,29 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.35)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.36)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.36 — main page tidied
+
+**Settings fold away.** *Certificate PDF* and *Backup & restore* are things you
+set once and leave, so they now live behind a **Settings** button and stay
+collapsed. The drawer remembers whether you left it open.
+
+Two exceptions, because a folded setting is a setting you forget: the button
+line always shows **how long since the last backup** and which certificate style
+is selected, and the drawer **opens itself** if you have never backed up or the
+last backup is more than a week old — the point at which browser storage starts
+clearing.
+
+**Offset tiles are about half the height.** Each is now one row: name and
+description on the left, the day countdown on the right where it still reads as
+the biggest thing on the tile, then the details and buttons beneath. The
+countdown, the colour coding and the recalibration warning banner are untouched,
+since those are the parts that earn their space.
+
+**Smaller hero.** The heading is one line instead of two and roughly a third of
+the previous size, the lede is shorter, and the background trace is smaller and
+fainter. Around 70 mm of vertical space recovered before you reach the offsets.
 
 ## v1.35 — Standard Medical text certificates
 
@@ -677,13 +699,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v30**, caches all shared modules |
+| `sw.js` | Cache bumped to **v31**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v30, then hit **Refresh offline copy**.
+picks up v31, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
