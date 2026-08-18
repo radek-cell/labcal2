@@ -368,7 +368,7 @@
 
     function trow(label, vals, opt) {
       opt = opt || {};
-      var h = opt.h || 4.95;
+      var h = opt.h || 4.7;
       var top = y;
       var lines = Array.isArray(label) ? label : [label];
       e.box(MX, top, IN, h, [255, 255, 255], null);
@@ -464,7 +464,7 @@
       tableHeader(title);
       trow(prefix === 'af' ? 'Probe Serial No' : ['Probe Serial No: (same', 'as As Found)'],
            cellset(prefix, 'probe'),
-           { boxed: true, required: prefix === 'af', h: 5.6,
+           { boxed: true, required: prefix === 'af', h: 5.4,
              greyvals: greyed ? [0, 1, 2, 3] : [], strike: greyed });
       trow('Display (from product)',
            [txtOf(prefix + '_air_display') || val(prefix + '_air_display'),
@@ -485,11 +485,11 @@
       trow(['Average ref: Min & Max', '(after correction)'],
            [txtOf(prefix + '_air_avg') || val(prefix + '_air_avg'),
             txtOf(prefix + '_load_avg') || val(prefix + '_load_avg')],
-           { merged: true, bold: true, h: 6.5, tint: greyed ? GREY_BG : null, grey: greyed });
+           { merged: true, bold: true, h: 6.2, tint: greyed ? GREY_BG : null, grey: greyed });
       trow(['Difference of Average', 'Reference vs Display'],
            [txtOf(prefix + '_air_diff') || val(prefix + '_air_diff'),
             txtOf(prefix + '_load_diff') || val(prefix + '_load_diff')],
-           { merged: true, bold: true, h: 6.5, tint: greyed ? GREY_BG : GREEN_BG, grey: greyed });
+           { merged: true, bold: true, h: 6.2, tint: greyed ? GREY_BG : GREEN_BG, grey: greyed });
     }
 
     measurementTable('af', 'As Found (AF)', false);
@@ -615,19 +615,84 @@
     y += 2.5;
 
     // ---------------- comments ----------------
-    var comH = 12;
-    e.box(MX, y, IN, comH, null, RULE_D, 0.25);
-    e.box(MX + 0.2, y + 0.2, IN - 0.4, 5.4, HDR_BG, null);
-    e.t('Comments', MX + 2, y + 4, 8.5, 'bold');
-    e.t('(calculations, deviations, customer requests)', MX + 20, y + 4, 7.3, 'normal', NOTE);
+    // The box grows to fit whatever is written, and anything that still will
+    // not fit continues on a second page. An earlier version capped this at
+    // four lines and threw the rest away silently.
     var comments = val('comments');
-    if (comments) {
-      var lines = doc.splitTextToSize(comments, IN - 6);
-      lines.slice(0, 4).forEach(function (ln, i) {
-        e.t(ln, MX + 3, y + 8.6 + i * 3.4, 8);
-      });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    var comLines = comments ? doc.splitTextToSize(comments, IN - 6) : [];
+    var HEAD_H = 5.0, LINE_H = 3.3, PAD_TOP = 2.6, PAD_BOT = 1.8, FOOT_H = 4.4;
+    var availH = (PH - 6 - FOOT_H) - y;
+    var maxLines = Math.max(0, Math.floor((availH - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H));
+    var shown = comLines.slice(0, maxLines);
+    var overflow = comLines.slice(maxLines);
+    var comH = Math.max(12, HEAD_H + PAD_TOP + shown.length * LINE_H + PAD_BOT);
+
+    function commentsHeader(top, suffix) {
+      e.box(MX, top, IN, HEAD_H, HDR_BG, null);
+      e.t('Comments' + (suffix || ''), MX + 2, top + 4, 8.5, 'bold');
+      if (!suffix) e.t('(calculations, deviations, customer requests)', MX + 20, top + 4, 7.3, 'normal', NOTE);
     }
-    y += comH;
+
+    // Three cases: it all fits, there is nothing to say, or it needs page 2.
+    // When it needs page 2, page 1 gets a one-line pointer rather than an
+    // empty box that pushes the layout past the page edge.
+    var goesOverleaf = overflow.length > 0;
+    if (!goesOverleaf) {
+      e.box(MX, y, IN, comH, null, RULE_D, 0.25);
+      commentsHeader(y + 0.2);
+      shown.forEach(function (ln, i) {
+        e.t(ln, MX + 3, y + HEAD_H + PAD_TOP + i * LINE_H, 8);
+      });
+      y += comH;
+    } else {
+      var noteH = 7;
+      e.box(MX, y, IN, noteH, null, RULE_D, 0.25);
+      e.box(MX + 0.2, y + 0.2, IN - 0.4, noteH - 0.4, HDR_BG, null);
+      e.t('Comments', MX + 2, y + 4.6, 8.5, 'bold');
+      e.t('\u2014 continued on page 2', MX + 22, y + 4.6, 7.3, 'italic', NOTE);
+      y += noteH;
+      overflow = comLines;   // put the whole comment on page 2, not a fragment
+    }
+
+    // A line saying when this copy was produced, so a regenerated certificate
+    // can be told apart from the one it replaced.
+    var stamp = new Date();
+    function two(n) { return String(n).padStart(2, '0'); }
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var stampTxt = 'Generated ' + two(stamp.getDate()) + '/' + MONTHS[stamp.getMonth()] + '/' + stamp.getFullYear()
+                 + ' ' + two(stamp.getHours()) + ':' + two(stamp.getMinutes());
+    e.t(stampTxt, MX, y + 3.4, 6.2, 'normal', NOTE);
+    e.t(goesOverleaf ? 'Page 1 of 2' : 'LabCal', PW - MX, y + 3.4, 6.2, 'normal', NOTE, 'right');
+    y += FOOT_H;
+
+    // ---------------- page 2, only if the comments need it ----------------
+    if (overflow.length) {
+      doc.addPage();
+      var y2 = MT;
+      e.t('Engineer Calibration Worksheet', MX, y2 + 5, 12, 'bold');
+      e.t('Standard 19 range/24 range \u2014 continuation', MX, y2 + 9.2, 7.5, 'bold', [40, 70, 120]);
+      e.t('No: ' + (val('certNo') || ''), PW - MX, y2 + 5, 11, 'bold', INK, 'right');
+      e.t([val('site'), val('serial'), val('jobRef')].filter(Boolean).join('  \u00b7  '),
+          PW - MX, y2 + 9.2, 7, 'normal', NOTE, 'right');
+      e.line(MX, y2 + 11.5, PW - MX, y2 + 11.5, RULE_D, 0.3);
+      y2 += 15;
+      var perPage = Math.floor((PH - 16 - y2 - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H);
+      var rest = overflow.slice(0, perPage);
+      var boxH = HEAD_H + PAD_TOP + rest.length * LINE_H + PAD_BOT;
+      e.box(MX, y2, IN, boxH, null, RULE_D, 0.25);
+      commentsHeader(y2 + 0.2, ' (continued)');
+      rest.forEach(function (ln, i) {
+        e.t(ln, MX + 3, y2 + HEAD_H + PAD_TOP + i * LINE_H, 8);
+      });
+      y2 += boxH;
+      if (overflow.length > perPage) {
+        e.t('\u2026 ' + (overflow.length - perPage) + ' further line(s) not shown \u2014 shorten the comments.',
+            MX, y2 + 4, 6.5, 'italic', RED);
+      }
+      e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
+      e.t('Page 2 of 2', PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
+    }
 
     // A layout that runs past the page edge is a bug, not a certificate.
     if (y > PH - 6) {

@@ -1,7 +1,36 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.25)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.26)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.26 — long comments no longer disappear
+
+**The bug:** the text generator capped the comments box at four lines and threw
+away anything beyond that, without saying so. Write a long note and the
+certificate came out looking like the version before you wrote it.
+
+Now the box grows to fit what you have written. If it will not fit on page 1,
+page 1 shows *"Comments — continued on page 2"* and the **whole** comment is
+printed on a second page, headed with the certificate number, site, serial and
+job reference so a loose sheet is still identifiable.
+
+**Also added: a "Generated <date time>" line** at the bottom of every text
+certificate. Regenerating a certificate produces the same filename as before, so
+two versions were impossible to tell apart once saved. Now they are.
+
+### If a regenerated certificate still looks like the old one
+
+Check the Generated line at the bottom first — that tells you which copy you are
+looking at.
+
+- **On the iPad**, saving over a file of the same name can leave Files showing
+  the old preview. Open it from the Files app rather than the preview, or save
+  under a new name and delete the old one.
+- **In the day panel**, regenerating for the same job and serial marks the older
+  certificate *superseded* and keeps both. Make sure you are sharing or merging
+  the current one, not the superseded row above it.
+- **Merging** works per job. Two certificates only merge together if they carry
+  the same job reference; a blank job reference puts one in its own group.
 
 ## v1.25 — text certificate fixes from the first real one
 
@@ -436,13 +465,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v20**, caches all shared modules |
+| `sw.js` | Cache bumped to **v21**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v20, then hit **Refresh offline copy**.
+picks up v21, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
