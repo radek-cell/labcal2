@@ -17,6 +17,12 @@
 
   // ---- page geometry ---------------------------------------------------
   var PW = 210, PH = 297;
+
+  // A "Generated <date time>" line was useful for telling a regenerated
+  // certificate from the one it replaced, but on a UKAS document a timestamp
+  // later than the calibration date invites awkward questions. Off unless
+  // this is turned back on deliberately.
+  var SHOW_GENERATED_STAMP = false;
   var MX = 12, MT = 11;          // margins
   var IN = PW - MX * 2;
 
@@ -674,8 +680,8 @@
     var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var stampTxt = 'Generated ' + two(stamp.getDate()) + '/' + MONTHS[stamp.getMonth()] + '/' + stamp.getFullYear()
                  + ' ' + two(stamp.getHours()) + ':' + two(stamp.getMinutes());
-    e.t(stampTxt, MX, y + 3.4, 6.2, 'normal', NOTE);
-    e.t(goesOverleaf ? 'Page 1 of 2' : 'LabCal', PW - MX, y + 3.4, 6.2, 'normal', NOTE, 'right');
+    if (SHOW_GENERATED_STAMP) e.t(stampTxt, MX, y + 3.4, 6.2, 'normal', NOTE);
+    if (goesOverleaf) e.t('Page 1 of 2', PW - MX, y + 3.4, 6.2, 'normal', NOTE, 'right');
     y += FOOT_H;
 
     // ---------------- page 2, only if the comments need it ----------------
@@ -702,7 +708,7 @@
         e.t('\u2026 ' + (overflow.length - perPage) + ' further line(s) not shown \u2014 shorten the comments.',
             MX, y2 + 4, 6.5, 'italic', RED);
       }
-      e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
+      if (SHOW_GENERATED_STAMP) e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
       e.t('Page 2 of 2', PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
     }
 
@@ -780,24 +786,45 @@
     });
     y += META.length * 5.2 + 3;
 
-    // ---------------- room thermometer + stopwatch strip ----------------
-    var stripH = 8;
-    e.box(MX, y, IN, stripH, null, RULE_D, 0.25);
-    var cells = [
-      ['Room temp. max', val('rtMax') ? val('rtMax') + ' \u00b0C' : '\u2014'],
-      ['Room temp. min', val('rtMin') ? val('rtMin') + ' \u00b0C' : '\u2014'],
-      ['Average', (txtOf('rtAvg') || '\u2014')],
-      ['Room thermometer', serialOnly(val('rtRef')) || '\u2014'],
-      ['Ref. cal due', monthYear(txtOf('refThermCalDue')) || '\u2014']
-    ];
-    var cw = IN / cells.length;
-    cells.forEach(function (c, i) {
-      var x = MX + i * cw;
-      if (i) e.line(x, y, x, y + stripH, RULE_D, 0.18);
-      e.t(c[0], x + 1.6, y + 3, 6.3, 'normal', NOTE);
-      e.t(c[1], x + 1.6, y + 6.4, 8.2, 'bold');
+    // ---------------- reference thermometer ----------------
+    // Laid out like the 19/24 sheet: serial in a pill, cal due date, and the
+    // validity badge beside it.
+    e.t('Digital Reference Thermometer Serial No', MX + 2, y + 3, 7.5);
+    e.pill(serialOnly(val('refTherm')) || '\u2014', MX + 62, y, 34, 4.8, 7);
+    e.t('Cal due date:', MX + 100, y + 3, 7.5);
+    e.t(monthYear(txtOf('refThermCalDue')) || '\u2014', MX + 122, y + 3, 8.5, 'bold');
+    var drtBadge = ascii(txtOf('refThermCalDue'));
+    if (/valid/i.test(drtBadge)) {
+      e.badge(drtBadge.replace(/^[^A-Za-z]*/, ''), MX + 140, y, IN - 142, 4.6);
+    }
+    y += 8;
+
+    // ---------------- room temperature ----------------
+    var LAB_W = 32, RT_H = 8;
+    e.box(MX, y, IN, RT_H, null, RULE_D, 0.25);
+    e.line(MX + LAB_W, y, MX + LAB_W, y + RT_H, RULE_D, 0.25);
+    e.t('Room Temperature (RT)', MX + 2, y + 5.2, 6.8, 'bold');
+
+    var rtCols = [56, 29, 20, 20, IN - LAB_W - 125];
+    var xs = [], acc = MX + LAB_W;
+    rtCols.forEach(function (w) { xs.push([acc, w]); acc += w; });
+    xs.slice(1).forEach(function (c) { e.line(c[0], y, c[0], y + RT_H, RULE_D, 0.18); });
+
+    var rtMid = y + 5.2;
+    e.label('RT Ref', xs[0][0] + 2, rtMid, 7, true);
+    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, y + 1.6, 19, 4.8, 6.8);
+    var rtv = ascii(txtOf('rtRefValidity'));
+    if (rtv) e.badge(rtv, xs[0][0] + 34, y + 1.8, xs[0][1] - 36, 4.4);
+
+    [[xs[1], 'Cal due:', monthYear(txtOf('rtRefValidity')), false],
+     [xs[2], 'Max', val('rtMax'), true],
+     [xs[3], 'Min', val('rtMin'), true],
+     [xs[4], 'Average:', txtOf('rtAvg'), false]
+    ].forEach(function (col) {
+      var vxx = e.label(col[1], col[0][0] + 2, rtMid, 7, col[3]);
+      e.t(col[2] || '\u2014', vxx + 1, rtMid, 8.5, 'bold');
     });
-    y += stripH + 2.5;
+    y += RT_H + 2.5;
 
     // ---------------- measurement sections ----------------
     var LBL_W = 62, TICK_W = 9;
@@ -899,18 +926,50 @@
                  { greyed: greyed, required: !greyed });
     }
 
+    // Did every As Found check pass? The worksheet colours each row, so read
+    // the result from there rather than recomputing the tolerances here.
+    function sectionResult(prefix) {
+      var keys = ['tickCal', 'tickHeat', 'tickInlet', 'tickSw', 'tickHw'];
+      var marks = keys.map(function (k) { return tickOf(prefix + '_' + k); });
+      return {
+        complete: marks.every(function (m) { return m !== null; }),
+        anyFail: marks.some(function (m) { return m === 'fail'; }),
+        allPass: marks.every(function (m) { return m === 'pass'; })
+      };
+    }
+
+    function banner(text, good) {
+      var h = 6;
+      e.box(MX, y, IN, h, good ? GREEN_BG : [255, 231, 231],
+            good ? GREEN_BD : [214, 150, 150], 0.2);
+      e.t(text, MX + 3, y + h - 2, 7.8, 'bold', good ? GREEN_TX : [140, 30, 30]);
+      y += h + 1.6;
+    }
+
+    var afResult = sectionResult('found');
+    banner(afResult.allPass
+      ? 'As Found: every check within specification.'
+      : (afResult.anyFail
+          ? 'As Found: one or more checks outside specification \u2014 adjustment required.'
+          : 'As Found: readings recorded.'),
+      !afResult.anyFail);
+
     section('found', 'Temperature Check \u2013 As found', false);
     y += 2;
 
     // As Left is locked off whenever no adjustment was required
     var leftSec = document.getElementById('leftSec');
     var leftOff = leftSec ? leftSec.classList.contains('leftOff') : true;
+    banner(leftOff
+      ? 'Adjustment not needed \u2014 all As Found checks were within specification, so the As Left section is not applicable.'
+      : 'Adjustment carried out \u2014 see the As Left readings below.',
+      leftOff);
     section('left', txtOf('leftBar') || 'Temperature Check \u2013 As left after adjustment', leftOff);
     y += 2.5;
 
     // ---------------- stopwatch ----------------
     sectionBar('Stopwatch Check');
-    var swH = 8;
+    var swH = 9;
     e.box(MX, y, IN, swH, null, RULE_D, 0.25);
     var swCells = [
       ['Stopwatch serial no', serialOnly(val('swSerial')) || '\u2014'],
@@ -983,8 +1042,8 @@
     var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var stampTxt = 'Generated ' + two(stamp.getDate()) + '/' + MONTHS[stamp.getMonth()] + '/' + stamp.getFullYear()
                  + ' ' + two(stamp.getHours()) + ':' + two(stamp.getMinutes());
-    e.t(stampTxt, MX, y + 3.6, 6.2, 'normal', NOTE);
-    e.t(overflow.length ? 'Page 1 of 2' : 'LabCal', PW - MX, y + 3.6, 6.2, 'normal', NOTE, 'right');
+    if (SHOW_GENERATED_STAMP) e.t(stampTxt, MX, y + 3.6, 6.2, 'normal', NOTE);
+    if (overflow.length) e.t('Page 1 of 2', PW - MX, y + 3.6, 6.2, 'normal', NOTE, 'right');
     y += FOOT_H;
 
     if (overflow.length) {
@@ -1008,7 +1067,7 @@
         e.t('\u2026 ' + (overflow.length - perPage) + ' further line(s) not shown \u2014 shorten the comments.',
             MX, y2 + 4, 6.5, 'italic', RED);
       }
-      e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
+      if (SHOW_GENERATED_STAMP) e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
       e.t('Page 2 of 2', PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
     }
 

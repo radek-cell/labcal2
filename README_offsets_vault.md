@@ -1,7 +1,30 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.27)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.28)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.28 — no timestamp, and Barkey matched to the 19/24 layout
+
+**The "Generated <date time>" line is gone.** On a UKAS document a timestamp
+later than the calibration date invites questions an engineer should not have to
+answer — a certificate regenerated to correct a typo would appear to have been
+produced days after the work. It is a one-line switch
+(`SHOW_GENERATED_STAMP` in `labcal_vector_pdf.js`) if it is ever wanted back.
+Page numbering on two-page certificates is unaffected.
+
+**Barkey now follows the 19/24 layout.** It gained:
+
+- the **reference thermometer row** — serial in a pill, cal due date, validity
+  badge — instead of being buried in the header fields
+- a bordered **Room Temperature (RT)** row with the thermometer pill, its
+  validity badge, cal due, max, min and average on one line
+- **status banners** above each section: green *"As Found: every check within
+  specification"*, or red *"one or more checks outside specification —
+  adjustment required"*, and the same before As Left
+
+Checked both ways: with everything in tolerance (five green ticks, green
+banners, As Left greyed as N/A) and with the heating display deliberately out
+(pink row, red cross, red banner, and the As Left section unlocked and live).
 
 ## v1.27 — text certificates for Barkey
 
@@ -485,13 +508,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v22**, caches all shared modules |
+| `sw.js` | Cache bumped to **v23**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v22, then hit **Refresh offline copy**.
+picks up v23, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
