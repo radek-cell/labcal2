@@ -10,6 +10,9 @@
 <script src="labcal_certs.js"></script>
 <script src="labcal_units.js"></script>
 <script src="labcal_pdf.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="labcal_font_dancing.js"></script>
+<script src="labcal_vector_pdf.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -506,6 +509,14 @@ function excelFileName(){return `${sheetNoFilePart()}_${cleanFilePart(dateForFil
 // to load — otherwise the old ~1 MB settings come back silently.
 function pdfQualityLabel(){
   if(!window.LabCalPdf) return ' · ⚠ labcal_pdf.js not loaded — using old large-file settings';
+  if(LabCalPdf.style && LabCalPdf.style()==='text'){
+    const missing=[];
+    if(!window.LabCalVectorPdf) missing.push('labcal_vector_pdf.js');
+    if(!window.jspdf) missing.push('jsPDF');
+    if(!window.LabCalDancingFont) missing.push('labcal_font_dancing.js');
+    if(missing.length) return ` · ⚠ Text selected but ${missing.join(', ')} did not load — using the image version`;
+    return ' · text certificate (~18 KB, selectable)';
+  }
   const p=LabCalPdf.current();
   return ` · quality: ${p.name} (${p.scale}×, q${p.quality})`;
 }
@@ -691,7 +702,37 @@ function markJobsheetDone(){
   if(!serialEl || !serialEl.value) return;
   LabCalJobsheet.markDone(serialEl.value, certEl?certEl.value:'');
 }
+// Text-based certificate. Any failure falls through to the image path below,
+// so a problem here can never stop a certificate being produced.
+async function generateVectorPDF(){
+  const filename=pdfFileName();
+  const btn=document.getElementById('generateBtn');
+  const originalLabel=btn.textContent;
+  btn.disabled=true; btn.textContent='Generating PDF…';
+  try{
+    if(!runPreGenerationChecks()) return true;
+    const blob=LabCalVectorPdf.blobBarkey();
+    reportPdfSize(blob.size);
+    if(window.LabCalSave){ await LabCalSave.deliver(blob, filename); }
+    else { downloadBlob(blob,filename); }
+    saveUnitSnapshot();
+    fileCertificateForToday(blob, filename);
+    markJobsheetDone();
+    return true;
+  }catch(err){
+    console.error('Vector PDF failed, falling back to the image version:', err);
+    alert('The text-based certificate could not be produced, so the standard one was used instead.\n\n'+(err&&err.message?err.message:err));
+    return false;
+  }finally{
+    btn.disabled=false; btn.textContent=originalLabel;
+  }
+}
+
 async function generatePDF(){
+  if(window.LabCalPdf && LabCalPdf.style && LabCalPdf.style()==='text'
+     && window.LabCalVectorPdf && window.LabCalVectorPdf.blobBarkey && window.jspdf){
+    if(await generateVectorPDF()) return;
+  }
   if(!runPreGenerationChecks()) return;
 
   refreshPdfHint();

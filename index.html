@@ -439,7 +439,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.26</span>
+    <span id="footYear">v1.27</span>
   </footer>
 
 </div>
@@ -545,7 +545,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.26 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.27 · ' + d.getFullYear();
 }
 
 // ---- Fullscreen toggle (Android/desktop browsers; on iOS, use
@@ -1068,7 +1068,7 @@ function renderPdfQuality(){
     return `<option value="${p.id}"${p.id===cur.id?' selected':''}>${p.name}</option>`;
   }).join('');
   const note = isText
-    ? 'Drawn as real text — about 18 KB, selectable and searchable. <b>19/24 Range worksheet only</b>; the others still use the image version.'
+    ? 'Drawn as real text — 11–18 KB, selectable and searchable. <b>19/24 Range and Barkey</b>; the other three still use the image version.'
     : `${cur.note} Each certificate's actual size is shown in the day panel on the calibration page.`;
   setHtml(el, `
     <div>
@@ -1078,7 +1078,7 @@ function renderPdfQuality(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select id="pdfStyleSel">
         <option value="image"${isText?'':' selected'}>Image (all worksheets)</option>
-        <option value="text"${isText?' selected':''}>Text (19/24 Range)</option>
+        <option value="text"${isText?' selected':''}>Text (19/24 + Barkey)</option>
       </select>
       ${isText ? '' : `<select id="pdfQualitySel">${opts}</select>`}
     </div>`);
@@ -1099,7 +1099,7 @@ function renderPdfQuality(){
 // which is right — but it also means a file that never got uploaded fails
 // silently. Say so plainly instead.
 // ---------------------------------------------------------------------
-const APP_VERSION = 'v1.26';
+const APP_VERSION = 'v1.27';
 function runSelfCheck(){
   const el = document.getElementById('selfCheck');
   if(!el) return;

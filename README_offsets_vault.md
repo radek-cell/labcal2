@@ -1,7 +1,27 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.26)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.27)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.27 — text certificates for Barkey
+
+The Barkey worksheet now generates text certificates too. The setting reads
+**Text (19/24 + Barkey)**; the other three worksheets still use the image path.
+
+**11 KB** for a Barkey certificate — it is a shorter sheet than the 19/24.
+
+Everything from the worksheet carries over: the reference/correction/window
+calculations, the specification text on each row, the pass and fail marks
+(drawn, not typed, so they cannot come out as stray characters), the greyed-out
+As Left block when no adjustment was required, the stopwatch check, and the
+cursive signature. Long comments overflow to a second page exactly as on the
+19/24 sheet.
+
+Four things fixed while building it, all found by generating from the live
+worksheet rather than a mock-up: the snowflake was drawn over the wordmark; the
+"Ref. cal due" cell picked up the validity badge text instead of the date; the
+stopwatch times showed a dash instead of zero seconds; and the required-field
+markers sat after the colon instead of before it.
 
 ## v1.26 — long comments no longer disappear
 
@@ -465,13 +485,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v21**, caches all shared modules |
+| `sw.js` | Cache bumped to **v22**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v21, then hit **Refresh offline copy**.
+picks up v22, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

@@ -82,8 +82,20 @@
 
   // A room thermometer reads "UKAS107 (valid until Aug/2026)" on screen. The
   // validity is already shown in its own badge, so only the serial is needed.
+  // Pull "Jan/2027" out of a cell that may also carry a validity badge.
+  function monthYear(v) {
+    var m = ascii(v).match(/([A-Za-z]{3}\/\d{4}|\d{4}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
   function serialOnly(v) {
     return ascii(v).split(' (')[0].trim();
+  }
+
+  function mmss(mins, secs) {
+    if (!mins && !secs) return '\u2014';
+    var m = String(mins || '0'), sc = String(secs || '0');
+    return m + ' min ' + (sc.length < 2 ? '0' + sc : sc) + ' sec';
   }
 
   // =====================================================================
@@ -702,9 +714,315 @@
     return doc;
   }
 
+  // =====================================================================
+  // Certificate — Barkey
+  // =====================================================================
+  // Same page furniture as the 19/24 sheet, but the Barkey worksheet is a
+  // single column of readings with a specification and a pass/fail tick per
+  // row, plus a stopwatch check.
+  function buildBarkey() {
+    var jsPDFctor = (global.jspdf && global.jspdf.jsPDF) || global.jsPDF;
+    if (!jsPDFctor) throw new Error('The PDF library did not load.');
+    var doc = new jsPDFctor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+
+    var haveScript = false;
+    try {
+      if (global.LabCalDancingFont) {
+        doc.addFileToVFS('DancingScript.ttf', global.LabCalDancingFont);
+        doc.addFont('DancingScript.ttf', 'DancingScript', 'normal');
+        haveScript = true;
+      }
+    } catch (e) { haveScript = false; }
+
+    var e = new Engine(doc);
+    var y = MT;
+
+    // ---------------- header ----------------
+    e.t('LABCOLD', MX, y + 6.5, 19, 'bold');
+    (function snowflake(cx, cy, r) {
+      e.stroke([91, 155, 213]); doc.setLineWidth(0.45);
+      for (var i = 0; i < 3; i++) {
+        var a = (Math.PI / 3) * i;
+        doc.line(cx - Math.cos(a) * r, cy - Math.sin(a) * r, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+    })(MX + e.w('LABCOLD', 19, 'bold') + 4, y + 4.5, 2.6);
+    e.t('medical & scientific refrigeration', MX, y + 10.4, 6, 'bold', NOTE);
+    e.t(txtOf('titleText') || 'BARKEY CALIBRATION WORKSHEET', PW - MX, y + 5, 13, 'bold', INK, 'right');
+    var noX = PW - MX - 34;
+    e.t('No', noX - 4, y + 12.5, 9, 'normal', INK, 'right');
+    e.star(noX - 3.5, y + 11.3);
+    e.t(':', noX - 1, y + 12.5, 9);
+    e.t(val('sheetNo'), noX + 4, y + 12.5, 12.5, 'bold');
+    e.line(noX + 1, y + 14, PW - MX, y + 14, INK, 0.4);
+    y += 18;
+
+    // ---------------- meta ----------------
+    var META = [
+      ['Job reference', val('jobRef'), 'Date', val('date') || val('dateNative')],
+      ['Site', val('site'), 'Department', val('dept')],
+      ['Model', val('model'), 'Serial number', val('serial')],
+      ['Engineer', val('eng'), 'Reference thermometer', val('refTherm')]
+    ];
+    var half = IN / 2;
+    META.forEach(function (r, i) {
+      var yy = y + i * 5.2;
+      [[r[0], r[1], MX], [r[2], r[3], MX + half]].forEach(function (pair) {
+        e.t(pair[0], pair[2], yy, 8);
+        var w = e.w(pair[0], 8);
+        e.star(pair[2] + w + 0.6, yy - 1.2);
+        e.t(':', pair[2] + w + 2.4, yy, 8);
+        e.t(pair[1], pair[2] + 38, yy, 8.5, 'bold');
+        e.stroke(RULE_D); doc.setLineWidth(0.15);
+        doc.setLineDashPattern([0.4, 0.6], 0);
+        doc.line(pair[2] + 37, yy + 1.4, pair[2] + half - 6, yy + 1.4);
+        doc.setLineDashPattern([], 0);
+      });
+    });
+    y += META.length * 5.2 + 3;
+
+    // ---------------- room thermometer + stopwatch strip ----------------
+    var stripH = 8;
+    e.box(MX, y, IN, stripH, null, RULE_D, 0.25);
+    var cells = [
+      ['Room temp. max', val('rtMax') ? val('rtMax') + ' \u00b0C' : '\u2014'],
+      ['Room temp. min', val('rtMin') ? val('rtMin') + ' \u00b0C' : '\u2014'],
+      ['Average', (txtOf('rtAvg') || '\u2014')],
+      ['Room thermometer', serialOnly(val('rtRef')) || '\u2014'],
+      ['Ref. cal due', monthYear(txtOf('refThermCalDue')) || '\u2014']
+    ];
+    var cw = IN / cells.length;
+    cells.forEach(function (c, i) {
+      var x = MX + i * cw;
+      if (i) e.line(x, y, x, y + stripH, RULE_D, 0.18);
+      e.t(c[0], x + 1.6, y + 3, 6.3, 'normal', NOTE);
+      e.t(c[1], x + 1.6, y + 6.4, 8.2, 'bold');
+    });
+    y += stripH + 2.5;
+
+    // ---------------- measurement sections ----------------
+    var LBL_W = 62, TICK_W = 9;
+    var VAL_W = 34;
+    var SPEC_W = IN - LBL_W - VAL_W - TICK_W;
+
+    function sectionBar(text) {
+      var h = 5.2;
+      e.box(MX, y, IN, h, [51, 51, 51], null);
+      e.t(text, PW / 2, y + h - 1.5, 8.2, 'bold', [255, 255, 255], 'center');
+      y += h;
+    }
+
+    function readingRow(label, value, spec, tick, opt) {
+      opt = opt || {};
+      var h = opt.h || 5.6;
+      var top = y;
+      var tint = opt.greyed ? GREY_BG
+               : (tick === 'pass' ? GREEN_BG : (tick === 'fail' ? [255, 222, 222] : null));
+      if (tint) e.box(MX, top, IN, h, tint, null);
+      var col = opt.greyed ? GREY_TXT : INK;
+      var baseline = top + h / 2 + 1.1;
+      var stem = String(label).replace(/:\s*$/, '');
+      if (opt.required) {
+        // "... heating *:" — marker between the text and the colon
+        e.t(':', MX + LBL_W - 2, baseline, 7.6, opt.bold ? 'bold' : 'normal', col, 'right');
+        e.star(MX + LBL_W - 4.6, baseline - 1.3);
+        e.t(stem, MX + LBL_W - 5.2, baseline, 7.6, opt.bold ? 'bold' : 'normal', col, 'right');
+      } else {
+        e.t(label, MX + LBL_W - 2, baseline, 7.6, opt.bold ? 'bold' : 'normal', col, 'right');
+      }
+      e.t(dash(value), MX + LBL_W + VAL_W / 2, top + h / 2 + 1.2, 8.6,
+          opt.bold || opt.calc ? 'bold' : 'normal', col, 'center');
+      if (spec) e.t(spec, MX + LBL_W + VAL_W + 2, top + h / 2 + 1, 6.6, 'normal', opt.greyed ? GREY_TXT : NOTE);
+      if (tick === 'pass' || tick === 'fail') {
+        var tx = MX + LBL_W + VAL_W + SPEC_W + TICK_W / 2;
+        var ty = top + h / 2;
+        e.stroke(tick === 'pass' ? [30, 120, 60] : [190, 40, 40]); doc.setLineWidth(0.6);
+        if (tick === 'pass') {
+          doc.line(tx - 1.6, ty, tx - 0.4, ty + 1.4);
+          doc.line(tx - 0.4, ty + 1.4, tx + 1.8, ty - 1.8);
+        } else {
+          doc.line(tx - 1.6, ty - 1.6, tx + 1.6, ty + 1.6);
+          doc.line(tx - 1.6, ty + 1.6, tx + 1.6, ty - 1.6);
+        }
+      }
+      e.line(MX, top + h, MX + IN, top + h, RULE, 0.18);
+      [LBL_W, LBL_W + VAL_W, LBL_W + VAL_W + SPEC_W].forEach(function (o) {
+        e.line(MX + o, top, MX + o, top + h, RULE, 0.18);
+      });
+      e.line(MX, top, MX, top + h, RULE_D, 0.25);
+      e.line(MX + IN, top, MX + IN, top + h, RULE_D, 0.25);
+      y = top + h;
+    }
+
+    function tickOf(id) {
+      var el = document.getElementById(id);
+      if (!el) return null;
+      if (el.classList.contains('pass')) return 'pass';
+      if (el.classList.contains('fail')) return 'fail';
+      var t = (el.textContent || '').trim();
+      if (t === '\u2713') return 'pass';
+      if (t === '\u2717') return 'fail';
+      // fall back to the row's own class, which is where the colour lives
+      var row = el.closest ? el.closest('.row') : null;
+      if (row) {
+        if (row.classList.contains('pass')) return 'pass';
+        if (row.classList.contains('fail')) return 'fail';
+      }
+      return null;
+    }
+
+    function section(prefix, title, greyed) {
+      sectionBar(title);
+      var o = { greyed: greyed };
+      readingRow('Probe:', greyed ? 'N/A' : (val(prefix + '_probe') || '\u2014'), '', null,
+                 { greyed: greyed, required: !greyed });
+      readingRow('Reference temperature (\u00b0C):', greyed ? 'N/A' : val(prefix + '_ref'),
+                 greyed ? '' : txtOf(prefix + '_nearest'), null, { greyed: greyed, required: !greyed });
+      readingRow('Probe Correction value (\u00b0C):', greyed ? 'N/A' : txtOf(prefix + '_corr'),
+                 'auto, 3 d.p.', null, { greyed: greyed, calc: true });
+      readingRow('Reference + correction (\u00b0C):', greyed ? 'N/A' : txtOf(prefix + '_refcorr'),
+                 greyed ? '' : txtOf(prefix + '_window'), greyed ? null : tickOf(prefix + '_tickRef'),
+                 { greyed: greyed, bold: true });
+      readingRow('Calibration temperature (\u00b0C):', greyed ? 'N/A' : val(prefix + '_cal'),
+                 'Spec: Ref. + corr. \u00b1 0.50 \u00b0C', greyed ? null : tickOf(prefix + '_tickCal'),
+                 { greyed: greyed, bold: true, required: !greyed });
+      readingRow('Temperature display in the device, heating:', greyed ? 'N/A' : val(prefix + '_heat'),
+                 'Spec: Ref. + corr. \u00b1 0.50 \u00b0C', greyed ? null : tickOf(prefix + '_tickHeat'),
+                 { greyed: greyed, required: !greyed });
+      readingRow('Temperature display in the device, inlet:', greyed ? 'N/A' : val(prefix + '_inlet'),
+                 'Spec: Ref. + corr. \u00b1 0.50 \u00b0C', greyed ? null : tickOf(prefix + '_tickInlet'),
+                 { greyed: greyed, required: !greyed });
+      readingRow('SW inlet operating temperature:', greyed ? 'N/A' : val(prefix + '_sw'),
+                 'Spec: Cal. temp + 1.00 \u00b1 0.50 \u00b0C', greyed ? null : tickOf(prefix + '_tickSw'),
+                 { greyed: greyed, required: !greyed });
+      readingRow('HW inlet overtemperature triggering:', greyed ? 'N/A' : val(prefix + '_hw'),
+                 'Spec: 48.00 \u00b1 1.00 \u00b0C', greyed ? null : tickOf(prefix + '_tickHw'),
+                 { greyed: greyed, required: !greyed });
+    }
+
+    section('found', 'Temperature Check \u2013 As found', false);
+    y += 2;
+
+    // As Left is locked off whenever no adjustment was required
+    var leftSec = document.getElementById('leftSec');
+    var leftOff = leftSec ? leftSec.classList.contains('leftOff') : true;
+    section('left', txtOf('leftBar') || 'Temperature Check \u2013 As left after adjustment', leftOff);
+    y += 2.5;
+
+    // ---------------- stopwatch ----------------
+    sectionBar('Stopwatch Check');
+    var swH = 8;
+    e.box(MX, y, IN, swH, null, RULE_D, 0.25);
+    var swCells = [
+      ['Stopwatch serial no', serialOnly(val('swSerial')) || '\u2014'],
+      ['Unit time', mmss(val('unitMin'), val('unitSec'))],
+      ['Stopwatch time', mmss(val('swMin'), val('swSec'))]
+    ];
+    var sw = IN / swCells.length;
+    swCells.forEach(function (c, i) {
+      var x = MX + i * sw;
+      if (i) e.line(x, y, x, y + swH, RULE_D, 0.18);
+      e.t(c[0], x + 1.6, y + 3, 6.3, 'normal', NOTE);
+      e.t(c[1], x + 1.6, y + 6.4, 8.2, 'bold');
+    });
+    y += swH + 2.5;
+
+    // ---------------- comments, footer, signatures ----------------
+    var comments = val('comments');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    var comLines = comments ? doc.splitTextToSize(comments, IN - 6) : [];
+    var HEAD_H = 5.0, LINE_H = 3.3, PAD_TOP = 2.6, PAD_BOT = 1.8, FOOT_H = 4.4, SIG_H = 9.1;
+    var availH = (PH - 6 - FOOT_H - SIG_H * 2 - 2.5) - y;
+    var maxLines = Math.max(0, Math.floor((availH - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H));
+    var overflow = comLines.length > maxLines ? comLines : [];
+    var shown = overflow.length ? [] : comLines;
+    var comH = overflow.length ? 7 : Math.max(12, HEAD_H + PAD_TOP + shown.length * LINE_H + PAD_BOT);
+
+    e.box(MX, y, IN, comH, null, RULE_D, 0.25);
+    e.box(MX + 0.2, y + 0.2, IN - 0.4, HEAD_H, HDR_BG, null);
+    e.t('Comments', MX + 2, y + 4, 8.5, 'bold');
+    if (overflow.length) e.t('\u2014 continued on page 2', MX + 22, y + 4, 7.3, 'italic', NOTE);
+    else e.t('(calculations, deviations, customer requests)', MX + 20, y + 4, 7.3, 'normal', NOTE);
+    shown.forEach(function (ln, i) {
+      e.t(ln, MX + 3, y + HEAD_H + PAD_TOP + i * LINE_H, 8);
+    });
+    y += comH + 2.5;
+
+    [['Engineer', val('eng'), val('engineerSignature') || val('eng'), val('engDate') || val('date'), true],
+     ['Checked by', val('checker'), val('checkerSignature'), val('checkDate'), false]
+    ].forEach(function (r) {
+      var top = y;
+      e.box(MX, top, IN, SIG_H, null, RULE_D, 0.25);
+      var a = MX + IN * 0.36, b = MX + IN * 0.68;
+      e.line(a, top, a, top + SIG_H, RULE_D, 0.25);
+      e.line(b, top, b, top + SIG_H, RULE_D, 0.25);
+      e.t(r[0], MX + 2, top + 3.4, 7.3);
+      if (r[4]) {
+        var lw = e.w(r[0], 7.3);
+        e.star(MX + 2 + lw + 0.6, top + 2.2);
+        e.t(':', MX + 2 + lw + 2.4, top + 3.4, 7.3);
+      }
+      if (r[1]) e.t(r[1], MX + 5, top + 7.6, 8.5, 'bold');
+      e.t('Signature:', a + 2, top + 3.4, 7.3);
+      if (r[2]) {
+        if (haveScript) {
+          doc.setFont('DancingScript', 'normal'); doc.setFontSize(13);
+          doc.setTextColor(SIGCOL[0], SIGCOL[1], SIGCOL[2]);
+          doc.text(ascii(r[2]), a + 5, top + 8);
+          doc.setFont('helvetica', 'normal');
+        } else {
+          e.t(r[2], a + 5, top + 8, 11, 'italic', SIGCOL);
+        }
+      }
+      e.t('Date:', b + 2, top + 3.4, 7.3);
+      if (r[3]) e.t(r[3], b + 6, top + 7.6, 8.5, 'bold');
+      y = top + SIG_H;
+    });
+
+    var stamp = new Date();
+    function two(n) { return String(n).padStart(2, '0'); }
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var stampTxt = 'Generated ' + two(stamp.getDate()) + '/' + MONTHS[stamp.getMonth()] + '/' + stamp.getFullYear()
+                 + ' ' + two(stamp.getHours()) + ':' + two(stamp.getMinutes());
+    e.t(stampTxt, MX, y + 3.6, 6.2, 'normal', NOTE);
+    e.t(overflow.length ? 'Page 1 of 2' : 'LabCal', PW - MX, y + 3.6, 6.2, 'normal', NOTE, 'right');
+    y += FOOT_H;
+
+    if (overflow.length) {
+      doc.addPage();
+      var y2 = MT;
+      e.t('Barkey Calibration Worksheet \u2014 continuation', MX, y2 + 5, 12, 'bold');
+      e.t('No: ' + val('sheetNo'), PW - MX, y2 + 5, 11, 'bold', INK, 'right');
+      e.t([val('site'), val('serial'), val('jobRef')].filter(Boolean).join('  \u00b7  '),
+          PW - MX, y2 + 9.2, 7, 'normal', NOTE, 'right');
+      e.line(MX, y2 + 11.5, PW - MX, y2 + 11.5, RULE_D, 0.3);
+      y2 += 15;
+      var perPage = Math.floor((PH - 16 - y2 - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H);
+      var rest = overflow.slice(0, perPage);
+      var boxH = HEAD_H + PAD_TOP + rest.length * LINE_H + PAD_BOT;
+      e.box(MX, y2, IN, boxH, null, RULE_D, 0.25);
+      e.box(MX + 0.2, y2 + 0.2, IN - 0.4, HEAD_H, HDR_BG, null);
+      e.t('Comments (continued)', MX + 2, y2 + 4, 8.5, 'bold');
+      rest.forEach(function (ln, i) { e.t(ln, MX + 3, y2 + HEAD_H + PAD_TOP + i * LINE_H, 8); });
+      y2 += boxH;
+      if (overflow.length > perPage) {
+        e.t('\u2026 ' + (overflow.length - perPage) + ' further line(s) not shown \u2014 shorten the comments.',
+            MX, y2 + 4, 6.5, 'italic', RED);
+      }
+      e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
+      e.t('Page 2 of 2', PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
+    }
+
+    if (y > PH - 6) {
+      console.warn('LabCal vector PDF (Barkey): content ran to ' + y.toFixed(1) + ' mm (page is ' + PH + ' mm).');
+    }
+    return doc;
+  }
+
   global.LabCalVectorPdf = {
-    supports: function (sheet) { return sheet === 'ws19_24'; },
+    supports: function (sheet) { return sheet === 'ws19_24' || sheet === 'barkey'; },
     build19_24: build19_24,
-    blob19_24: function () { return build19_24().output('blob'); }
+    blob19_24: function () { return build19_24().output('blob'); },
+    buildBarkey: buildBarkey,
+    blobBarkey: function () { return buildBarkey().output('blob'); }
   };
 })(typeof window !== 'undefined' ? window : this);
