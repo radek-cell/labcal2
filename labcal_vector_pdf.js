@@ -64,6 +64,28 @@
 
   function dash(v) { return v === '' || v == null ? '\u2013N/A\u2013' : String(v); }
 
+  // The built-in PDF fonts cover Latin-1 only; anything else (ticks, arrows)
+  // comes out as a stray glyph. Drop it rather than print rubbish.
+  // jsPDF's standard fonts use WinAnsi, which DOES include en/em dashes and
+  // curly quotes but NOT ticks, snowflakes or arrows. Strip only what it
+  // genuinely cannot draw — an earlier version of this took the em dash out of
+  // "Adjustment not needed — Air and Load..." as collateral damage.
+  var UNSUPPORTED = /[\u2713\u2714\u2716\u2717\u2718\u2744\u2190-\u21FF\u2600-\u27BF]/g;
+  var KEEP = '\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u20AC';
+  function ascii(v) {
+    return String(v == null ? '' : v)
+      .replace(UNSUPPORTED, '')
+      .replace(new RegExp('[^\\x20-\\xFF' + KEEP + ']', 'g'), '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // A room thermometer reads "UKAS107 (valid until Aug/2026)" on screen. The
+  // validity is already shown in its own badge, so only the serial is needed.
+  function serialOnly(v) {
+    return ascii(v).split(' (')[0].trim();
+  }
+
   // =====================================================================
   // Drawing helpers
   // =====================================================================
@@ -85,7 +107,7 @@
   // Text with the baseline placed from the TOP of the given line.
   Engine.prototype.t = function (s, x, y, size, style, rgb, align) {
     this.font(size, style).colour(rgb || INK);
-    this.d.text(String(s), x, y, align ? { align: align } : undefined);
+    this.d.text(ascii(s), x, y, align ? { align: align } : undefined);
     return this;
   };
 
@@ -133,15 +155,26 @@
 
   Engine.prototype.badge = function (text, x, y, w, h) {
     h = h || 4.4;
+    var label = ascii(text);
+    var size = 6;
+    while (size > 4.4 && this.w(label, size, 'bold') > w - 7) size -= 0.2;
     this.rbox(x, y, w, h, 1.2, BADGE_BG, GREEN_BD, 0.2);
-    this.t(text, x + w / 2, y + h - 1.4, 6, 'bold', BADGE_TX, 'center');
+    // a drawn tick, since the character is not in the standard font
+    var tx = x + 2, ty = y + h / 2;
+    this.stroke(BADGE_TX); this.d.setLineWidth(0.35);
+    this.d.line(tx - 0.6, ty, tx + 0.1, ty + 0.8);
+    this.d.line(tx + 0.1, ty + 0.8, tx + 1.3, ty - 0.9);
+    this.t(label, x + 4.4 + (w - 6) / 2, y + h - 1.4, size, 'bold', BADGE_TX, 'center');
     return this;
   };
 
   Engine.prototype.pill = function (text, x, y, w, h, size) {
     h = h || 4.8;
+    var label = ascii(text);
+    var sz = size || 6.8;
+    while (sz > 4.6 && this.w(label, sz) > w - 2.5) sz -= 0.2;
     this.rbox(x, y, w, h, 2.2, [255, 255, 255], RULE_D, 0.25);
-    this.t(text, x + w / 2, y + h - 1.5, size || 6.8, 'normal', INK, 'center');
+    this.t(label, x + w / 2, y + h - 1.5, sz, 'normal', INK, 'center');
     return this;
   };
 
@@ -222,8 +255,8 @@
     e.pill(val('drtSerial') || '\u2014', MX + 62, y, 34, 4.8, 7);
     e.t('Cal due date:', MX + 100, y + 3, 7.5);
     e.t(txtOf('drtDue') || val('drtDue') || '\u2014', MX + 122, y + 3, 8.5, 'bold');
-    var drtStatus = txtOf('drtCalStatus');
-    if (drtStatus) e.badge(drtStatus, MX + 140, y, IN - 140, 4.6);
+    var drtStatus = ascii(txtOf('drtCalStatus'));
+    if (drtStatus) e.badge(drtStatus, MX + 140, y, IN - 142, 4.6);
     y += 8;
 
     // ---------------- room temp + controller ----------------
@@ -235,20 +268,20 @@
     e.line(MX + LAB_W, y + RT_H + CT_ROW, MX + IN, y + RT_H + CT_ROW, RULE_D, 0.18);
 
     e.t('Room Temperature (RT)', MX + 2, y + 5.2, 6.8, 'bold');
-    var rtCols = [56, 28, 20, 20, IN - LAB_W - 124];
+    var rtCols = [56, 29, 20, 20, IN - LAB_W - 125];
     var xs = [], acc = MX + LAB_W;
     rtCols.forEach(function (w) { xs.push([acc, w]); acc += w; });
     xs.slice(1).forEach(function (col) { e.line(col[0], y, col[0], y + RT_H, RULE_D, 0.18); });
 
     var rtMid = y + 5.2;
     var vx = e.label('RT Ref', xs[0][0] + 2, rtMid, 7, true);
-    e.pill(val('rtRef') || '\u2014', xs[0][0] + 13, y + 1.6, 18, 4.8, 6.8);
-    var rtv = txtOf('rtRefValidity');
-    if (rtv) e.badge(rtv, xs[0][0] + 33, y + 1.8, xs[0][1] - 35, 4.4);
+    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, y + 1.6, 19, 4.8, 6.8);
+    var rtv = ascii(txtOf('rtRefValidity'));
+    if (rtv) e.badge(rtv, xs[0][0] + 34, y + 1.8, xs[0][1] - 36, 4.4);
 
     [[xs[1], 'Cal due:', txtOf('rtDue') || val('rtDue'), false, null],
-     [xs[2], 'Max', val('rtMax'), true, GREEN_BG],
-     [xs[3], 'Min', val('rtMin'), true, GREEN_BG],
+     [xs[2], 'Max', val('rtMax'), true, null],
+     [xs[3], 'Min', val('rtMin'), true, null],
      [xs[4], 'Average:', txtOf('rtAvg') || val('rtAvg'), false, null]
     ].forEach(function (col) {
       var x = col[0][0], w = col[0][1];
