@@ -317,91 +317,98 @@
     });
     y += META.length * 5.2 + 3;
 
-    // ---------------- reference thermometer ----------------
-    e.t('Digital Reference Thermometer Serial No', MX + 2, y + 3, 7.5);
-    e.pill(val('drtSerial') || '\u2014', MX + 62, y, 34, 4.8, 7);
-    e.t('Cal due date:', MX + 100, y + 3, 7.5);
-    e.t(txtOf('drtDue') || val('drtDue') || '\u2014', MX + 122, y + 3, 8.5, 'bold');
+    // ---------------- instrument + controller block ----------------
+    // One bordered block: reference thermometer, room temperature, then the
+    // two controller rows. Same shape as the Barkey sheet.
+    var LAB_W = 40, ROW_H = 8, CT_ROW = 6.4;
+    var blockTop = y, blockH = ROW_H * 2 + CT_ROW * 2;
+    e.box(MX, blockTop, IN, blockH, null, RULE_D, 0.25);
+    e.line(MX + LAB_W, blockTop, MX + LAB_W, blockTop + blockH, RULE_D, 0.25);
+    e.line(MX, blockTop + ROW_H, MX + IN, blockTop + ROW_H, RULE_D, 0.18);
+    e.line(MX, blockTop + ROW_H * 2, MX + IN, blockTop + ROW_H * 2, RULE_D, 0.18);
+    e.line(MX + LAB_W, blockTop + ROW_H * 2 + CT_ROW, MX + IN, blockTop + ROW_H * 2 + CT_ROW, RULE_D, 0.18);
+
+    // --- row 1: digital reference thermometer ---
+    var r1 = blockTop + 5.2;
+    e.t('Digital Reference Thermometer', MX + 2, r1, 6.8, 'bold');
+    var dCols = [56, 34, IN - LAB_W - 90];
+    var dxs = [], dacc = MX + LAB_W;
+    dCols.forEach(function (w) { dxs.push([dacc, w]); dacc += w; });
+    dxs.slice(1).forEach(function (c) { e.line(c[0], blockTop, c[0], blockTop + ROW_H, RULE_D, 0.18); });
+    e.label('Serial no', dxs[0][0] + 2, r1, 7, true);
+    e.pill(serialOnly(val('drtSerial')) || '\u2014', dxs[0][0] + 19, blockTop + 1.6, 34, 4.8, 7);
+    var dVal = e.label('Cal due', dxs[1][0] + 2, r1, 7, false);
+    e.t(txtOf('drtDue') || val('drtDue') || '\u2014', dVal + 1, r1, 8.5, 'bold');
     var drtStatus = ascii(txtOf('drtCalStatus'));
-    if (drtStatus) e.badge(drtStatus, MX + 140, y, IN - 142, 4.6);
-    y += 8;
+    if (drtStatus) e.badge(drtStatus, dxs[2][0] + 2, blockTop + 1.8, dxs[2][1] - 4, 4.4);
 
-    // ---------------- room temp + controller ----------------
-    var LAB_W = 32, RT_H = 8, CT_ROW = 6.4;
-    var blockH = RT_H + CT_ROW * 2;
-    e.box(MX, y, IN, blockH, null, RULE_D, 0.25);
-    e.line(MX + LAB_W, y, MX + LAB_W, y + blockH, RULE_D, 0.25);
-    e.line(MX, y + RT_H, MX + IN, y + RT_H, RULE_D, 0.18);
-    e.line(MX + LAB_W, y + RT_H + CT_ROW, MX + IN, y + RT_H + CT_ROW, RULE_D, 0.18);
-
-    e.t('Room Temperature (RT)', MX + 2, y + 5.2, 6.8, 'bold');
+    // --- row 2: room temperature ---
+    var rtTop = blockTop + ROW_H, r2 = rtTop + 5.2;
+    e.t('Room Temperature (RT)', MX + 2, r2, 6.8, 'bold');
     var rtCols = [56, 29, 20, 20, IN - LAB_W - 125];
     var xs = [], acc = MX + LAB_W;
     rtCols.forEach(function (w) { xs.push([acc, w]); acc += w; });
-    xs.slice(1).forEach(function (col) { e.line(col[0], y, col[0], y + RT_H, RULE_D, 0.18); });
-
-    var rtMid = y + 5.2;
-    var vx = e.label('RT Ref', xs[0][0] + 2, rtMid, 7, true);
-    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, y + 1.6, 19, 4.8, 6.8);
+    xs.slice(1).forEach(function (c) { e.line(c[0], rtTop, c[0], rtTop + ROW_H, RULE_D, 0.18); });
+    e.label('RT Ref', xs[0][0] + 2, r2, 7, true);
+    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, rtTop + 1.6, 19, 4.8, 6.8);
     var rtv = ascii(txtOf('rtRefValidity'));
-    if (rtv) e.badge(rtv, xs[0][0] + 34, y + 1.8, xs[0][1] - 36, 4.4);
-
-    [[xs[1], 'Cal due:', txtOf('rtDue') || val('rtDue'), false, null],
-     [xs[2], 'Max', val('rtMax'), true, null],
-     [xs[3], 'Min', val('rtMin'), true, null],
-     [xs[4], 'Average:', txtOf('rtAvg') || val('rtAvg'), false, null]
+    if (rtv) e.badge(rtv, xs[0][0] + 34, rtTop + 1.8, xs[0][1] - 36, 4.4);
+    [[xs[1], 'Cal due:', txtOf('rtDue') || val('rtDue') || monthYear(rtv), false],
+     [xs[2], 'Max', val('rtMax'), true],
+     [xs[3], 'Min', val('rtMin'), true],
+     [xs[4], 'Average:', txtOf('rtAvg') || val('rtAvg'), false]
     ].forEach(function (col) {
-      var x = col[0][0], w = col[0][1];
-      if (col[4]) e.box(x + 0.2, y + 0.2, w - 0.4, RT_H - 0.4, col[4], null);
-      var vxx = e.label(col[1], x + 2, rtMid, 7, col[3]);
-      e.t(col[2] || '\u2014', vxx + 1, rtMid, 8.5, 'bold');
+      var vxx = e.label(col[1], col[0][0] + 2, r2, 7, col[3]);
+      e.t(col[2] || '\u2014', vxx + 1, r2, 8.5, 'bold');
     });
 
-    e.t('Controller Settings', MX + 2, y + RT_H + CT_ROW - 1.6, 6.8, 'bold');
-    var ctSplit = MX + LAB_W + 72;
-    e.line(ctSplit, y + RT_H, ctSplit, y + blockH, RULE_D, 0.18);
+    // --- rows 3 and 4: controller settings ---
+    var ctTop = blockTop + ROW_H * 2;
+    e.t('Controller Settings', MX + 2, ctTop + CT_ROW - 1.6, 6.8, 'bold');
+    var ctSplit = MX + LAB_W + 66;
+    e.line(ctSplit, ctTop, ctSplit, blockTop + blockH, RULE_D, 0.18);
 
     function ctLine(top, offLabel, v1, v2, spLabel, spVal, note, greyed) {
       var mid = top + CT_ROW - 2.2;
       var x = MX + LAB_W + 2;
       x = e.label(offLabel, x, mid, 6.8, true);
       [['Cal 1:', v1], ['Cal 2:', v2]].forEach(function (p, i) {
-        var bx = x + i * 25;
+        var bx = x + i * 24;
         e.t(p[0], bx, mid, 6.8);
-        if (greyed) e.chip(p[1], bx + 9, mid - 3.1, 13);
+        if (greyed) e.chip(p[1], bx + 9, mid - 3.1, 12);
         else e.t(p[1] || '\u2014', bx + 10, mid, 7.8, 'bold');
       });
       var sx = e.label(spLabel, ctSplit + 2, mid, 6.8, true);
       if (greyed) e.chip(spVal, sx + 1, mid - 3.1, 14);
-      else {
-        e.t(spVal || '\u2014', sx + 1, mid, 8.5, 'bold');
-        if (note) e.t(note, sx + 13, mid, 6.2, 'normal', [50, 90, 160]);
-      }
+      else e.t(spVal || '\u2014', sx + 1, mid, 8.5, 'bold');
+      // which offset point the corrections were taken from
+      if (note) e.t('Nearest offset point used: ' + note, sx + 17, mid, 6.2, 'normal', [50, 90, 160]);
     }
 
-    var nearest = txtOf('initialNearestPoint');
-    ctLine(y + RT_H, 'Initial offsets', val('initialOffsetsCal1'), val('initialOffsetsCal2'),
-           'Initial set point', val('initialSetpoint'),
-           nearest && nearest !== '\u2014' ? 'Nearest offset point used: ' + nearest : '', false);
     // The worksheet marks the As Left table 'notNeeded' when no adjustment is
-    // required. Read that flag rather than inferring it from whether readings
-    // happen to have been typed yet — otherwise a sheet that needs adjusting
-    // but has not been filled in prints as though it were crossed out.
-    function alNotNeeded() {
+    // required; that single flag drives the controller row, the banner and
+    // whether the As Left table prints crossed out.
+    var alNotNeededYet = (function () {
       var t = document.getElementById('alTable');
       if (t) return t.classList.contains('notNeeded');
-      var ids = ['al_air_display', 'al_load_display',
-                 'al_air1_max', 'al_air2_max', 'al_load1_max', 'al_load2_max'];
+      var ids = ['al_air_display', 'al_load_display', 'al_air1_max', 'al_load1_max'];
       return !ids.some(function (id) {
         var v = val(id);
         return v !== '' && v !== '-N/A-' && !isNaN(parseFloat(v));
       });
-    }
-    var alDone = !alNotNeeded();
-    ctLine(y + RT_H + CT_ROW, 'Final offsets',
-           alDone ? val('finalOffsetsCal1') : 'N/A', alDone ? val('finalOffsetsCal2') : 'N/A',
-           'Final set point', alDone ? val('finalSetpoint') : '\u2013N/A\u2013', '', !alDone);
-    y += blockH + 2.5;
+    })();
+    var alDone = !alNotNeededYet;
+    ctLine(ctTop, 'Initial offsets', val('initialOffsetsCal1'), val('initialOffsetsCal2'),
+           'Initial set point', val('initialSetpoint'),
+           (txtOf('initialNearestPoint') || '').replace('\u2014', ''), false);
+    ctLine(ctTop + CT_ROW, 'Final offsets',
+           alNotNeededYet ? 'N/A' : val('finalOffsetsCal1'),
+           alNotNeededYet ? 'N/A' : val('finalOffsetsCal2'),
+           'Final set point',
+           alNotNeededYet ? '\u2013N/A\u2013' : val('finalSetpoint'),
+           alNotNeededYet ? '' : (txtOf('finalNearestPoint') || '').replace('\u2014', ''),
+           alNotNeededYet);
+    y = blockTop + blockH + 2.5;
 
     // ---------------- status banner ----------------
     function banner(text, h, size, bad) {

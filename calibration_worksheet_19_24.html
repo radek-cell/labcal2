@@ -133,7 +133,7 @@
       <td class="label" style="width:31%">Average: <input class="input calc" id="rtAvg" readonly><span id="rtRangeWarn" class="hintText warn" style="display:none;margin-left:4px;font-weight:700;white-space:nowrap">Max must be ≥ Min</span></td>
     </tr>
     <tr><td rowspan="2" class="label">Controller Settings</td><td colspan="2">Initial offsets <span class="req">*</span>: <span style="display:inline-flex;gap:8px;align-items:center;vertical-align:middle"><span class="small">Cal 1:</span><select class="input offsetSel" id="initialOffsetsCal1" style="width:58px;display:inline-block"></select><span class="small">Cal 2:</span><select class="input offsetSel" id="initialOffsetsCal2" style="width:58px;display:inline-block"></select></span></td><td colspan="3">Initial set point <span class="req">*</span>: <input class="input num" inputmode="decimal" id="initialSetpoint" value="5.0" placeholder="e.g. 5, -20, -34"> <span class="small" id="setpointRangeHint" style="color:#333"></span><br><span class="small" style="color:#333">Nearest offset point used: <b id="initialNearestPoint">—</b></span></td></tr>
-    <tr><td colspan="2">Final offsets <span class="req" title="Required when As Left needs completing">*</span>: <span style="display:inline-flex;gap:8px;align-items:center;vertical-align:middle"><span class="small">Cal 1:</span><select class="input offsetSel" id="finalOffsetsCal1" style="width:58px;display:inline-block"></select><span class="small">Cal 2:</span><select class="input offsetSel" id="finalOffsetsCal2" style="width:58px;display:inline-block"></select></span></td><td colspan="3">Final set point <span class="req" title="Required when As Left needs completing">*</span>: <input class="input num" inputmode="decimal" id="finalSetpoint"></td></tr>
+    <tr><td colspan="2">Final offsets <span class="req" title="Required when As Left needs completing">*</span>: <span style="display:inline-flex;gap:8px;align-items:center;vertical-align:middle"><span class="small">Cal 1:</span><select class="input offsetSel" id="finalOffsetsCal1" style="width:58px;display:inline-block"></select><span class="small">Cal 2:</span><select class="input offsetSel" id="finalOffsetsCal2" style="width:58px;display:inline-block"></select></span></td><td colspan="3">Final set point <span class="req" title="Required when As Left needs completing">*</span>: <input class="input num" inputmode="decimal" id="finalSetpoint"><br><span class="small" style="color:#333">Nearest offset point used: <b id="finalNearestPoint">—</b></span></td></tr>
   </table>
 
   <div class="probeHint"><b>Probe dropdown:</b> choose the probe/port in each column. The app will use the closest correction to the Initial Set Point for AF and to the Final Set Point for AL. The selected correction is copied into Max Correction and Min Correction automatically.<br><b>Air calculation markers:</b> blue underline = highest corrected maximum used; green underline = lowest corrected minimum used.</div>
@@ -923,11 +923,14 @@ function nearestOffsetPoint(setpoint){
   return points.reduce((best,p)=>Math.abs(p-setpoint)<Math.abs(best-setpoint)?p:best,points[0]);
 }
 function refreshNearestOffsetDisplay(){
-  const el=document.getElementById('initialNearestPoint');
-  if(!el) return;
-  const sp=n('initialSetpoint');
-  const nearest=nearestOffsetPoint(sp);
-  el.textContent = nearest===null ? '—' : nearest+' °C';
+  // Both set points get the same treatment — the As Left corrections come from
+  // the point nearest the FINAL set point, so it is worth stating.
+  [['initialNearestPoint','initialSetpoint'],['finalNearestPoint','finalSetpoint']].forEach(([elId,spId])=>{
+    const el=document.getElementById(elId);
+    if(!el) return;
+    const nearest=nearestOffsetPoint(n(spId));
+    el.textContent = nearest===null ? '—' : nearest+' °C';
+  });
 }
 function n(id){const v=parseFloat((document.getElementById(id)?.value||'').replace(',','.'));return Number.isFinite(v)?v:null}
 const DEVICE_SETPOINT_RANGES={
