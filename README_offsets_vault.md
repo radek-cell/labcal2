@@ -1,7 +1,35 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.34)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.35)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.35 — Standard Medical text certificates
+
+Four of the five worksheets now produce text certificates. The setting reads
+**Text (all except Cloud Temp)**.
+
+Standard Medical shares its layout with Standard Non-Medical, so rather than a
+second near-identical generator there is now one builder with the differences
+declared in a small spec:
+
+| | Standard Medical | Standard Non-Medical |
+|---|---|---|
+| Tolerance | fixed ±0.300 °C | depends on device type |
+| Offsets | Cal 1 and Cal 2 | single field |
+| Extra field | Calibration System | Non-Standard Variations |
+
+Everything else — the four columns, the instrument block, the banners, the
+comments and signatures — is the same code.
+
+**Banner wording now prefers the worksheet's own.** The certificate was
+substituting its own concise line, which lost a distinction that matters: "As
+Found not yet complete" is not the same as "adjustment carried out". The screen
+wording is used whenever it fits on one line, with the concise version as
+fallback.
+
+Every worksheet was generated in every state — normal, failing, verification
+code, long comments, and mid-adjustment — and all land on a single page except
+a genuinely long comment, which continues to page 2 as intended.
 
 ## v1.34 — everything on one page
 
@@ -649,13 +677,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v29**, caches all shared modules |
+| `sw.js` | Cache bumped to **v30**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v29, then hit **Refresh offline copy**.
+picks up v30, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

@@ -744,11 +744,15 @@
     y += 1.6;
 
     var adjNeeded = alDone;
-    // Short enough for one line; the worksheet keeps the fuller wording.
-    banner(adjNeeded
+    // The worksheet's own wording where it fits on a line, otherwise a
+    // concise equivalent — it distinguishes "adjustment carried out" from
+    // "As Found not yet complete", which a generic line would lose.
+    var alScreen1924 = ascii(txtOf('alStatus'));
+    var alShort1924 = adjNeeded
       ? 'Adjustment carried out \u2014 see the As Left readings below.'
-      : 'Adjustment not needed \u2014 As Found within tolerance \u00b10.5 \u00b0C. As Left not applicable.',
-      6, 7.6, stateOf('alStatus') === 'bad');
+      : 'Adjustment not needed \u2014 As Found within tolerance \u00b10.5 \u00b0C. As Left not applicable.';
+    banner(alScreen1924 && alScreen1924.length <= 110 ? alScreen1924 : alShort1924,
+           6, 7.6, stateOf('alStatus') === 'bad');
 
     measurementTable('al', 'As Left (AL)', !adjNeeded);
     y += 2;
@@ -847,7 +851,35 @@
   // Same furniture as the 19/24 sheet. The differences: the tolerance depends
   // on the device type, the columns are Air L/R, Load and Chart Recorder, and
   // Load and Chart Recorder can be marked not applicable for a given unit.
-  function buildSNMD() {
+  // Standard Medical and Standard Non-Medical share a layout. The differences
+  // are declared here rather than duplicated as two near-identical builders.
+  var SHEET_SPECS = {
+    snmd: {
+      subtitle: function () {
+        var tol = ascii(txtOf('deviceToleranceHint'));
+        return 'Standard Non-Medical Device \u2014 ' + (val('deviceType') || 'Fridge') + (tol ? '  \u00b7  ' + tol : '');
+      },
+      tolerance: function () {
+        var m = ascii(txtOf('deviceToleranceHint')).match(/[\u00b1][^\s]*\s*\u00b0C/);
+        return m ? m[0] : '';
+      },
+      extraMeta: null,
+      variations: true,
+      dualOffsets: false
+    },
+    smd: {
+      subtitle: function () {
+        return 'Standard Medical Device \u2014 ' + (val('deviceType') || '') + '  \u00b7  Tolerance: \u00b10.300 \u00b0C';
+      },
+      tolerance: function () { return '\u00b10.300 \u00b0C'; },
+      extraMeta: function () { return ['Calibration System', val('calSystem')]; },
+      variations: false,
+      dualOffsets: true
+    }
+  };
+
+  function buildSNMD(specKey) {
+    var spec = SHEET_SPECS[specKey || 'snmd'];
     var jsPDFctor = (global.jspdf && global.jspdf.jsPDF) || global.jsPDF;
     if (!jsPDFctor) throw new Error('The PDF library did not load.');
     var doc = new jsPDFctor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
@@ -862,10 +894,7 @@
     } catch (e) { haveScript = false; }
 
     var e = new Engine(doc);
-    var device = val('deviceType') || 'Fridge';
-    var tolHint = ascii(txtOf('deviceToleranceHint'));
-    var head = headingFor('Engineer Calibration Worksheet',
-                          'Standard Non-Medical Device \u2014 ' + device + (tolHint ? '  \u00b7  ' + tolHint : ''));
+    var head = headingFor('Engineer Calibration Worksheet', spec.subtitle());
     var y = drawHeader(e, doc, { title: head.title, subtitle: head.subtitle, number: val('certNo') });
 
     // ---------------- meta ----------------
@@ -876,10 +905,15 @@
       ['Manufacturer', val('manufacturer') === 'Other...' ? val('manufacturerOther') : val('manufacturer'),
         'Load', val('load')]
     ];
+    if (spec.extraMeta) {
+      var extra = spec.extraMeta();
+      META.push([extra[0], extra[1], '', '']);
+    }
     var half = IN / 2;
     META.forEach(function (r, i) {
       var yy = y + i * 5.2;
       [[r[0], r[1], MX], [r[2], r[3], MX + half]].forEach(function (pair) {
+        if (!pair[0]) return;
         e.t(pair[0], pair[2], yy, 8);
         var w = e.w(pair[0], 8);
         e.star(pair[2] + w + 0.6, yy - 1.2);
@@ -893,8 +927,7 @@
     });
     y += META.length * 5.2 - 0.5;
 
-    // Variations sit on the same line as the last meta row's spare half.
-    var variation = val('variationNote');
+    var variation = spec.variations ? val('variationNote') : '';
     if (variation) {
       e.t('Non-Standard Variations', MX, y + 3, 8);
       var vw = e.w('Non-Standard Variations', 8);
@@ -956,20 +989,31 @@
       return t ? t.classList.contains('notNeeded') : true;
     })();
 
-    // This worksheet has a single offsets field per row, not Cal 1 / Cal 2.
+    // Non-Medical has one offsets field per row; Medical has Cal 1 and Cal 2.
     function ctLine(top, offLabel, offVal, spLabel, spVal, note, greyed) {
       var mid = top + CT_ROW - 2.2;
       var x = e.label(offLabel, MX + LAB_W + 2, mid, 6.8, true);
-      if (greyed) e.chip(offVal, x + 1, mid - 3.1, 16);
+      if (spec.dualOffsets) {
+        [['Cal 1:', offVal[0]], ['Cal 2:', offVal[1]]].forEach(function (pair, i) {
+          var bx = x + i * 24;
+          e.t(pair[0], bx, mid, 6.8);
+          if (greyed) e.chip(pair[1], bx + 9, mid - 3.1, 12);
+          else e.t(pair[1] || '\u2014', bx + 10, mid, 7.8, 'bold');
+        });
+      } else if (greyed) e.chip(offVal, x + 1, mid - 3.1, 16);
       else e.t(offVal || '\u2014', x + 1, mid, 7.8, 'bold');
       var sx = e.label(spLabel, ctSplit + 2, mid, 6.8, true);
       if (greyed) e.chip(spVal, sx + 1, mid - 3.1, 14);
       else e.t(spVal || '\u2014', sx + 1, mid, 8.5, 'bold');
       if (note) e.t('Nearest offset point used: ' + note, sx + 17, mid, 6.2, 'normal', [50, 90, 160]);
     }
-    ctLine(ctTop, 'Initial offsets', val('initialOffsets'), 'Initial set point', val('initialSetpoint'),
+    var initOff = spec.dualOffsets ? [val('initialOffsetsCal1'), val('initialOffsetsCal2')] : val('initialOffsets');
+    var finalOff = spec.dualOffsets
+      ? (alNotNeededYet ? ['N/A', 'N/A'] : [val('finalOffsetsCal1'), val('finalOffsetsCal2')])
+      : (alNotNeededYet ? 'N/A' : val('finalOffsets'));
+    ctLine(ctTop, 'Initial offsets', initOff, 'Initial set point', val('initialSetpoint'),
            (txtOf('initialNearestPoint') || '').replace('\u2014', ''), false);
-    ctLine(ctTop + CT_ROW, 'Final offsets', alNotNeededYet ? 'N/A' : val('finalOffsets'),
+    ctLine(ctTop + CT_ROW, 'Final offsets', finalOff,
            'Final set point', alNotNeededYet ? '\u2013N/A\u2013' : val('finalSetpoint'),
            alNotNeededYet ? '' : (txtOf('finalNearestPoint') || '').replace('\u2014', ''), alNotNeededYet);
     y = blockTop + blockH + 2.5;
@@ -1044,11 +1088,12 @@
     y += 1.6;
     // The on-screen wording is deliberately fuller; on paper a single line
     // reads better and buys a row of space.
-    var tolTxt = (tolHint.match(/[\u00b1][^\s]*\s*\u00b0C/) || [''])[0];
-    banner(alNotNeededYet
+    var tolTxt = spec.tolerance();
+    var alScreen = ascii(txtOf('alStatus'));
+    var alShort = alNotNeededYet
       ? ('Adjustment not needed \u2014 As Found within tolerance' + (tolTxt ? ' ' + tolTxt : '') + '. As Left not applicable.')
-      : 'Adjustment carried out \u2014 see the As Left readings below.',
-      6, 7.6, stateOf('alStatus') === 'bad');
+      : 'Adjustment carried out \u2014 see the As Left readings below.';
+    banner(alScreen && alScreen.length <= 110 ? alScreen : alShort, 6, 7.6, stateOf('alStatus') === 'bad');
     table('al', 'As Left (AL)', alNotNeededYet);
     y += 2;
 
@@ -1475,10 +1520,12 @@
 
   global.LabCalVectorPdf = {
     supports: function (sheet) {
-      return sheet === 'ws19_24' || sheet === 'barkey' || sheet === 'snmd';
+      return sheet === 'ws19_24' || sheet === 'barkey' || sheet === 'snmd' || sheet === 'smd';
     },
-    buildSNMD: buildSNMD,
-    blobSNMD: function () { return buildSNMD().output('blob'); },
+    buildSNMD: function () { return buildSNMD('snmd'); },
+    blobSNMD: function () { return buildSNMD('snmd').output('blob'); },
+    buildSMD: function () { return buildSNMD('smd'); },
+    blobSMD: function () { return buildSNMD('smd').output('blob'); },
     build19_24: build19_24,
     blob19_24: function () { return build19_24().output('blob'); },
     buildBarkey: buildBarkey,
