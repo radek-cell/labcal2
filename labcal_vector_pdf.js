@@ -222,6 +222,36 @@
   };
 
   // =====================================================================
+  // Shared page header
+  // =====================================================================
+  // Title and subtitle on the left, LABCOLD wordmark on the right with the
+  // certificate number beneath it. Every worksheet uses this, so they cannot
+  // drift apart.
+  function drawHeader(e, doc, opts) {
+    var y = MT;
+    e.t(opts.title, MX, y + 5, 14, 'bold');
+    e.t(opts.subtitle, MX, y + 9.6, 7.5, 'bold', [40, 70, 120]);
+
+    e.t('LABCOLD', PW - MX, y + 6.5, 19, 'bold', INK, 'right');
+    var markW = e.w('LABCOLD', 19, 'bold');
+    (function snowflake(cx, cy, r) {
+      e.stroke([91, 155, 213]); doc.setLineWidth(0.45);
+      for (var i = 0; i < 3; i++) {
+        var a = (Math.PI / 3) * i;
+        doc.line(cx - Math.cos(a) * r, cy - Math.sin(a) * r, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+    })(PW - MX - markW - 5, y + 4.5, 2.6);
+
+    var noX = PW - MX - 30;
+    e.t('No', noX - 4, y + 12.5, 9, 'normal', INK, 'right');
+    e.star(noX - 3.5, y + 11.3);
+    e.t(':', noX - 1, y + 12.5, 9);
+    e.t(opts.number || '', noX + 3, y + 12.5, 12.5, 'bold');
+    e.line(noX + 1, y + 14, PW - MX, y + 14, INK, 0.4);
+    return y + 18;
+  }
+
+  // =====================================================================
   // Certificate — Standard 19 range / 24 range
   // =====================================================================
   function build19_24() {
@@ -243,23 +273,11 @@
     var y = MT;
 
     // ---------------- header ----------------
-    e.t('Engineer Calibration Worksheet', MX, y + 5, 14, 'bold');
-    e.t('Standard 19 range/24 range', MX, y + 9.6, 7.5, 'bold', [40, 70, 120]);
-    e.t('LABCOLD', PW - MX, y + 6.5, 19, 'bold', INK, 'right');
-    (function snowflake(cx, cy, r) {
-      e.stroke([91, 155, 213]); doc.setLineWidth(0.45);
-      for (var i = 0; i < 3; i++) {
-        var a = (Math.PI / 3) * i;
-        doc.line(cx - Math.cos(a) * r, cy - Math.sin(a) * r, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-      }
-    })(PW - MX - 41, y + 4.5, 2.6);
-    var noX = PW - MX - 30;
-    e.t('No', noX - 4, y + 12.5, 9, 'normal', INK, 'right');
-    e.star(noX - 3.5, y + 11.3);
-    e.t(':', noX - 1, y + 12.5, 9);
-    e.t(val('certNo') || txtOf('certNo'), noX + 3, y + 12.5, 12.5, 'bold');
-    e.line(noX + 1, y + 14, PW - MX, y + 14, INK, 0.4);
-    y += 18;
+    y = drawHeader(e, doc, {
+      title: 'Engineer Calibration Worksheet',
+      subtitle: 'Standard 19 range/24 range',
+      number: val('certNo') || txtOf('certNo')
+    });
 
     // ---------------- meta ----------------
     var META = [
@@ -783,23 +801,11 @@
     var y = MT;
 
     // ---------------- header ----------------
-    e.t('LABCOLD', MX, y + 6.5, 19, 'bold');
-    (function snowflake(cx, cy, r) {
-      e.stroke([91, 155, 213]); doc.setLineWidth(0.45);
-      for (var i = 0; i < 3; i++) {
-        var a = (Math.PI / 3) * i;
-        doc.line(cx - Math.cos(a) * r, cy - Math.sin(a) * r, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-      }
-    })(MX + e.w('LABCOLD', 19, 'bold') + 4, y + 4.5, 2.6);
-    e.t('medical & scientific refrigeration', MX, y + 10.4, 6, 'bold', NOTE);
-    e.t(txtOf('titleText') || 'BARKEY CALIBRATION WORKSHEET', PW - MX, y + 5, 13, 'bold', INK, 'right');
-    var noX = PW - MX - 34;
-    e.t('No', noX - 4, y + 12.5, 9, 'normal', INK, 'right');
-    e.star(noX - 3.5, y + 11.3);
-    e.t(':', noX - 1, y + 12.5, 9);
-    e.t(val('sheetNo'), noX + 4, y + 12.5, 12.5, 'bold');
-    e.line(noX + 1, y + 14, PW - MX, y + 14, INK, 0.4);
-    y += 18;
+    y = drawHeader(e, doc, {
+      title: 'Engineer Calibration Worksheet',
+      subtitle: 'Barkey',
+      number: val('sheetNo')
+    });
 
     // ---------------- meta ----------------
     var META = [

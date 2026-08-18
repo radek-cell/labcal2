@@ -1,7 +1,17 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.29)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.30)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.30 — one standard header on every certificate
+
+Barkey now carries the same header as the 19/24 sheet: **"Engineer Calibration
+Worksheet"** on the left with the worksheet name beneath it, and the **LABCOLD
+wordmark on the right with the certificate number underneath**.
+
+Rather than copying the layout into each generator, there is now a single
+`drawHeader()` that both call. They cannot drift apart, and the three worksheets
+still to be converted will inherit the same header for free.
 
 ## v1.29 — failures now show as failures on the 19/24 certificate
 
@@ -536,13 +546,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v24**, caches all shared modules |
+| `sw.js` | Cache bumped to **v25**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v24, then hit **Refresh offline copy**.
+picks up v25, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
