@@ -263,6 +263,254 @@
     return y + 18;
   }
 
+  // A status line can be long ("...Load and Chart Recorder are not applicable
+  // on this worksheet"), so wrap it and grow the box rather than letting it
+  // run off the right-hand edge.
+  function drawBanner(e, doc, y, text, bad, size) {
+    size = size || 7.8;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(size);
+    var lines = doc.splitTextToSize(ascii(text), IN - 6);
+    var h = Math.max(6, 2.2 + lines.length * 3.2);
+    e.box(MX, y, IN, h, bad ? RED_BG : GREEN_BG, bad ? RED_BD : GREEN_BD, 0.2);
+    lines.forEach(function (ln, i) {
+      e.t(ln, MX + 3, y + 4 + i * 3.2, size, 'bold', bad ? RED_TX : GREEN_TX);
+    });
+    return y + h + 1.6;
+  }
+
+  // =====================================================================
+  // Comments box, then signatures
+  // =====================================================================
+  // Comments sit above the signatures so they read as part of the record.
+  // The box grows to fit; anything that will not fit continues on page 2.
+  function drawCommentsAndSignatures(e, doc, y, haveScript, ctx) {
+    var comments = val('comments');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    var comLines = comments ? doc.splitTextToSize(comments, IN - 6) : [];
+    var HEAD_H = 5.0, LINE_H = 3.3, PAD_TOP = 2.6, PAD_BOT = 1.8, SIG_H = 9.1;
+    var availH = (PH - 8 - SIG_H * 2 - 2.5) - y;
+    var maxLines = Math.max(0, Math.floor((availH - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H));
+    var overflow = comLines.length > maxLines ? comLines : [];
+    var shown = overflow.length ? [] : comLines;
+    var comH = overflow.length ? 7 : Math.max(12, HEAD_H + PAD_TOP + shown.length * LINE_H + PAD_BOT);
+
+    e.box(MX, y, IN, comH, null, RULE_D, 0.25);
+    e.box(MX + 0.2, y + 0.2, IN - 0.4, HEAD_H, HDR_BG, null);
+    e.t('Comments', MX + 2, y + 4, 8.5, 'bold');
+    if (overflow.length) e.t('\u2014 continued on page 2', MX + 22, y + 4, 7.3, 'italic', NOTE);
+    else e.t('(calculations, deviations, customer requests)', MX + 20, y + 4, 7.3, 'normal', NOTE);
+    shown.forEach(function (ln, i) { e.t(ln, MX + 3, y + HEAD_H + PAD_TOP + i * LINE_H, 8); });
+    y += comH + 2.5;
+
+    [["Engineer's Name", val('engineer'), val('engineerSignature') || val('engineer'), val('engDate') || val('date'), true],
+     ["Checker's Name:", val('checker'), val('checkerSignature'), val('checkDate'), false]
+    ].forEach(function (r) {
+      var top = y;
+      e.box(MX, top, IN, SIG_H, null, RULE_D, 0.25);
+      var a = MX + IN * 0.36, b = MX + IN * 0.68;
+      e.line(a, top, a, top + SIG_H, RULE_D, 0.25);
+      e.line(b, top, b, top + SIG_H, RULE_D, 0.25);
+      e.t(r[0], MX + 2, top + 3.4, 7.3);
+      if (r[4]) {
+        var lw = e.w(r[0], 7.3);
+        e.star(MX + 2 + lw + 0.6, top + 2.2);
+        e.t(':', MX + 2 + lw + 2.4, top + 3.4, 7.3);
+      }
+      if (r[1]) e.t(r[1], MX + 5, top + 7.6, 8.5, 'bold');
+      e.t('Signature:', a + 2, top + 3.4, 7.3);
+      if (r[2]) {
+        if (haveScript) {
+          doc.setFont('DancingScript', 'normal'); doc.setFontSize(13);
+          doc.setTextColor(SIGCOL[0], SIGCOL[1], SIGCOL[2]);
+          doc.text(ascii(r[2]), a + 5, top + 8);
+          doc.setFont('helvetica', 'normal');
+        } else {
+          e.t(r[2], a + 5, top + 8, 11, 'italic', SIGCOL);
+        }
+      }
+      e.t('Date:', b + 2, top + 3.4, 7.3);
+      if (r[3]) e.t(r[3], b + 6, top + 7.6, 8.5, 'bold');
+      y = top + SIG_H;
+    });
+
+    if (overflow.length) {
+      e.t('Page 1 of 2', PW - MX, y + 3.6, 6.2, 'normal', NOTE, 'right');
+      doc.addPage();
+      var y2 = MT;
+      e.t((ctx && ctx.subtitle ? 'Engineer Calibration Worksheet' : 'Worksheet') + ' \u2014 continuation', MX, y2 + 5, 12, 'bold');
+      e.t('No: ' + ((ctx && ctx.certNo) || ''), PW - MX, y2 + 5, 11, 'bold', INK, 'right');
+      e.t([val('site'), val('serial'), val('jobRef')].filter(Boolean).join('  \u00b7  '),
+          PW - MX, y2 + 9.2, 7, 'normal', NOTE, 'right');
+      e.line(MX, y2 + 11.5, PW - MX, y2 + 11.5, RULE_D, 0.3);
+      y2 += 15;
+      var perPage = Math.floor((PH - 16 - y2 - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H);
+      var rest = overflow.slice(0, perPage);
+      var boxH = HEAD_H + PAD_TOP + rest.length * LINE_H + PAD_BOT;
+      e.box(MX, y2, IN, boxH, null, RULE_D, 0.25);
+      e.box(MX + 0.2, y2 + 0.2, IN - 0.4, HEAD_H, HDR_BG, null);
+      e.t('Comments (continued)', MX + 2, y2 + 4, 8.5, 'bold');
+      rest.forEach(function (ln, i) { e.t(ln, MX + 3, y2 + HEAD_H + PAD_TOP + i * LINE_H, 8); });
+      y2 += boxH;
+      if (overflow.length > perPage) {
+        e.t('\u2026 ' + (overflow.length - perPage) + ' further line(s) not shown \u2014 shorten the comments.',
+            MX, y2 + 4, 6.5, 'italic', RED);
+      }
+      e.t('Page 2 of 2', PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
+    }
+    return y;
+  }
+
+  // =====================================================================
+  // Measurement table
+  // =====================================================================
+  // Shared by every worksheet. `groups` describes the column bands:
+  //   [{title:'Air (T1)', span:2}, {title:'Load (T2)', span:2}]
+  //   [{title:'Air', span:2}, {title:'Load', span:1}, {title:'Chart Recorder', span:1}]
+  // A span of 2 gets the Left/Right sub-header with its coloured dots.
+  function makeTable(e, doc, groups, labelW) {
+    var cols = groups.reduce(function (n, g) { return n + g.span; }, 0);
+    var COL = (IN - labelW) / cols;
+    var bands = [];
+    (function () { var at = 0; groups.forEach(function (g) { bands.push([at, g.span]); at += g.span; }); })();
+
+    // inlineLR: no Left/Right sub-header row — the dots go in the probe cells
+    // instead, which saves a full row per table.
+    function header(title, y, inlineLR) {
+      var hh = 5;
+      e.box(MX, y, IN, hh, HDR_BG, RULE_D, 0.25);
+      e.t(title, MX + 2, y + hh - 1.4, 7.5, 'bold');
+      e.line(MX + labelW, y, MX + labelW, y + hh, RULE_D, 0.25);
+      var x = MX + labelW;
+      groups.forEach(function (g, gi) {
+        if (gi) e.line(x, y, x, y + hh, RULE_D, 0.25);
+        e.t(g.title, x + g.span * COL / 2, y + hh - 1.4, 7.5, 'bold', INK, 'center');
+        x += g.span * COL;
+      });
+      y += hh;
+      if (inlineLR) return y;
+
+      var sh = 4.6;
+      e.box(MX, y, IN, sh, HDR_BG, RULE_D, 0.25);
+      e.line(MX + labelW, y, MX + labelW, y + sh, RULE_D, 0.25);
+      x = MX + labelW;
+      groups.forEach(function (g, gi) {
+        if (gi) e.line(x, y, x, y + sh, RULE_D, 0.18);
+        if (g.span === 2) {
+          ['Left', 'Right'].forEach(function (lab, i) {
+            var cx = x + i * COL;
+            if (i) e.line(cx, y, cx, y + sh, RULE_D, 0.18);
+            var dot = i === 0 ? [47, 111, 208] : [217, 131, 36];
+            e.fill(dot); doc.circle(cx + COL / 2 - 7, y + sh / 2, 1.6, 'F');
+            e.t(i === 0 ? 'L' : 'R', cx + COL / 2 - 7, y + sh / 2 + 0.8, 5.5, 'bold', [255, 255, 255], 'center');
+            e.t(lab, cx + COL / 2 - 4.6, y + sh - 1.4, 7);
+          });
+        }
+        x += g.span * COL;
+      });
+      return y + sh;
+    }
+
+    function row(label, vals, y, opt) {
+      opt = opt || {};
+      var h = opt.h || 4.7;
+      var top = y;
+      var lines = Array.isArray(label) ? label : [label];
+      e.box(MX, top, IN, h, [255, 255, 255], null);
+
+      if (opt.tint || opt.tints) {
+        if (opt.merged) {
+          bands.forEach(function (b, bi) {
+            var t = opt.tints ? opt.tints[bi] : opt.tint;
+            if (t) e.box(MX + labelW + b[0] * COL + 0.2, top + 0.2, b[1] * COL - 0.4, h - 0.4, t, null);
+          });
+        } else {
+          for (var i = 0; i < cols; i++) {
+            var t = opt.tints ? opt.tints[i] : opt.tint;
+            if (t) e.box(MX + labelW + i * COL + 0.2, top + 0.2, COL - 0.4, h - 0.4, t, null);
+          }
+        }
+      }
+
+      var lead = 2.2;
+      var first = top + h / 2 - (lead * (lines.length - 1)) / 2 + 0.9;
+      lines.forEach(function (ln, i) {
+        e.t(ln, MX + 2, first + i * lead, lines.length > 1 ? 6 : 7,
+            opt.bold ? 'bold' : 'normal', opt.grey ? GREY_TXT : INK);
+      });
+      if (opt.required) e.star(MX + 2 + e.w(lines[0], lines.length > 1 ? 6 : 7) + 0.6, first - 1.1);
+
+      if (opt.merged) {
+        bands.forEach(function (b, bi) {
+          var cx = MX + labelW + b[0] * COL;
+          e.t(dash(vals[bi]), cx + b[1] * COL / 2, top + h / 2 + 1.2, 8.5, 'bold',
+              opt.grey ? GREY_TXT : INK, 'center');
+        });
+      } else {
+        vals.forEach(function (v, i) {
+          var cx = MX + labelW + i * COL;
+          var greyThis = opt.grey || (opt.greyvals && opt.greyvals.indexOf(i) !== -1);
+          if (opt.boxed) {
+            var CH = 4.4, CW = COL - 10;
+            var bxx = cx + (COL - CW) / 2, by = top + (h - CH) / 2;
+            if (opt.inlineLR) {
+              // which side of the pair this column is, shown as the same
+              // coloured dot the worksheet uses
+              var band = null, at = 0;
+              groups.forEach(function (g) {
+                if (i >= at && i < at + g.span) band = g;
+                at += g.span;
+              });
+              if (band && band.span === 2) {
+                var side = (i % 2 === 0) ? 'L' : 'R';
+                var dotC = side === 'L' ? [47, 111, 208] : [217, 131, 36];
+                e.fill(dotC); doc.circle(bxx - 3.4, top + h / 2, 1.5, 'F');
+                e.t(side, bxx - 3.4, top + h / 2 + 0.8, 5.2, 'bold', [255, 255, 255], 'center');
+                bxx += 1.4; CW -= 2.8;
+                e.rbox(bxx, by, CW, CH, 0.8, greyThis ? GREY_BG : CHIP_BG, CHIP_BD, 0.2);
+                e.t(String(v || '\u2014'), bxx + CW / 2, by + CH - 1.4, 7,
+                    greyThis ? 'normal' : 'bold', greyThis ? GREY_TXT : INK, 'center');
+                if (opt.strike && String(v || '').trim()) {
+                  var tw2 = e.w(String(v || ''), 7);
+                  e.line(bxx + CW / 2 - tw2 / 2 - 0.6, by + CH / 2 + 0.2,
+                         bxx + CW / 2 + tw2 / 2 + 0.6, by + CH / 2 + 0.2, GREY_TXT, 0.2);
+                }
+                return;
+              }
+            }
+            e.rbox(bxx, by, CW, CH, 0.8, greyThis ? GREY_BG : CHIP_BG, CHIP_BD, 0.2);
+            e.t(String(v || '\u2014'), cx + COL / 2, by + CH - 1.4, 7.2,
+                greyThis ? 'normal' : 'bold', greyThis ? GREY_TXT : INK, 'center');
+            if (opt.strike && String(v || '').trim()) {
+              var tw = e.w(String(v || ''), 7.2);
+              e.line(cx + COL / 2 - tw / 2 - 0.6, by + CH / 2 + 0.2,
+                     cx + COL / 2 + tw / 2 + 0.6, by + CH / 2 + 0.2, GREY_TXT, 0.2);
+            }
+          } else {
+            e.t(dash(v), cx + COL / 2, top + h / 2 + 1.2, 8.5,
+                opt.bold ? 'bold' : 'normal', greyThis ? GREY_TXT : INK, 'center');
+          }
+          if (opt.marks && opt.marks[i]) {
+            e.line(cx + 3, top + h - 1, cx + COL - 3, top + h - 1,
+                   opt.marks[i] === 'blue' ? BLUE_MK : GREEN_MK, 0.45);
+          }
+        });
+      }
+
+      e.line(MX, top + h, MX + IN, top + h, RULE, 0.18);
+      var keep = { 0: true }; keep[cols] = true;
+      if (opt.merged) bands.forEach(function (b) { keep[b[0]] = true; });
+      else for (var g = 0; g <= cols; g++) keep[g] = true;
+      Object.keys(keep).forEach(function (g) {
+        e.line(MX + labelW + Number(g) * COL, top, MX + labelW + Number(g) * COL, top + h, RULE, 0.18);
+      });
+      e.line(MX, top, MX, top + h, RULE_D, 0.25);
+      e.line(MX + IN, top, MX + IN, top + h, RULE_D, 0.25);
+      return top + h;
+    }
+
+    return { header: header, row: row, cols: cols, colWidth: COL };
+  }
+
   // =====================================================================
   // Certificate — Standard 19 range / 24 range
   // =====================================================================
@@ -411,109 +659,15 @@
     y = blockTop + blockH + 2.5;
 
     // ---------------- status banner ----------------
-    function banner(text, h, size, bad) {
-      e.box(MX, y, IN, h, bad ? RED_BG : GREEN_BG, bad ? RED_BD : GREEN_BD, 0.2);
-      e.t(text, MX + 3, y + h - 2, size || 8, 'bold', bad ? RED_TX : GREEN_TX);
-      y += h + 1.6;
-    }
+    function banner(text, h, size, bad) { y = drawBanner(e, doc, y, text, bad, size); }
     var afStatus = txtOf('afStatus');
     var afBad = stateOf('afStatus') === 'bad';
     banner(afStatus || 'As Found: within tolerance.', 6, 7.8, afBad);
 
     // ---------------- measurement tables ----------------
-    var TLAB = 40, COL = (IN - TLAB) / 4;
-
-    function tableHeader(title) {
-      var hh = 5;
-      e.box(MX, y, IN, hh, HDR_BG, RULE_D, 0.25);
-      e.t(title, MX + 2, y + hh - 1.4, 7.5, 'bold');
-      e.line(MX + TLAB, y, MX + TLAB, y + hh, RULE_D, 0.25);
-      e.t('Air (T1)', MX + TLAB + COL, y + hh - 1.4, 7.5, 'bold', INK, 'center');
-      e.line(MX + TLAB + 2 * COL, y, MX + TLAB + 2 * COL, y + hh, RULE_D, 0.25);
-      e.t('Load (T2)', MX + TLAB + 3 * COL, y + hh - 1.4, 7.5, 'bold', INK, 'center');
-      y += hh;
-      var sh = 4.6;
-      e.box(MX, y, IN, sh, HDR_BG, RULE_D, 0.25);
-      e.line(MX + TLAB, y, MX + TLAB, y + sh, RULE_D, 0.25);
-      ['Left', 'Right', 'Left', 'Right'].forEach(function (lab, i) {
-        var cx = MX + TLAB + i * COL;
-        if (i) e.line(cx, y, cx, y + sh, RULE_D, 0.18);
-        var dot = lab === 'Left' ? [47, 111, 208] : [217, 131, 36];
-        e.fill(dot); doc.circle(cx + COL / 2 - 7, y + sh / 2, 1.6, 'F');
-        e.t(lab === 'Left' ? 'L' : 'R', cx + COL / 2 - 7, y + sh / 2 + 0.8, 5.5, 'bold', [255, 255, 255], 'center');
-        e.t(lab, cx + COL / 2 - 4.6, y + sh - 1.4, 7);
-      });
-      y += sh;
-    }
-
-    function trow(label, vals, opt) {
-      opt = opt || {};
-      var h = opt.h || 4.7;
-      var top = y;
-      var lines = Array.isArray(label) ? label : [label];
-      e.box(MX, top, IN, h, [255, 255, 255], null);
-      // tints
-      if (opt.tint || opt.tints) {
-        if (opt.merged) {
-          [[0, 2], [2, 2]].forEach(function (sp, si) {
-            var t = opt.tints ? opt.tints[si] : opt.tint;
-            if (t) e.box(MX + TLAB + sp[0] * COL + 0.2, top + 0.2, sp[1] * COL - 0.4, h - 0.4, t, null);
-          });
-        } else {
-          for (var i = 0; i < 4; i++) e.box(MX + TLAB + i * COL + 0.2, top + 0.2, COL - 0.4, h - 0.4, opt.tint, null);
-        }
-      }
-      // label
-      var lead = 2.2;
-      var first = top + h / 2 - (lead * (lines.length - 1)) / 2 + 0.9;
-      lines.forEach(function (ln, i) {
-        e.t(ln, MX + 2, first + i * lead, lines.length > 1 ? 6 : 7,
-            opt.bold ? 'bold' : 'normal', opt.grey ? GREY_TXT : INK);
-      });
-      if (opt.required) e.star(MX + 2 + e.w(lines[0], lines.length > 1 ? 6 : 7) + 0.6, first - 1.1);
-      // values
-      if (opt.merged) {
-        [[0, 2], [2, 2]].forEach(function (sp, si) {
-          var cx = MX + TLAB + sp[0] * COL;
-          e.t(dash(vals[si]), cx + sp[1] * COL / 2, top + h / 2 + 1.2, 8.5, 'bold',
-              opt.grey ? GREY_TXT : INK, 'center');
-        });
-      } else {
-        vals.forEach(function (v, i) {
-          var cx = MX + TLAB + i * COL;
-          var greyThis = opt.grey || (opt.greyvals && opt.greyvals.indexOf(i) !== -1);
-          if (opt.boxed) {
-            var CH = 4.4, CW = COL - 10;
-            var bx = cx + (COL - CW) / 2, by = top + (h - CH) / 2;
-            e.rbox(bx, by, CW, CH, 0.8, greyThis ? GREY_BG : CHIP_BG, CHIP_BD, 0.2);
-            e.t(String(v || '\u2014'), cx + COL / 2, by + CH - 1.4, 7.2,
-                greyThis ? 'normal' : 'bold', greyThis ? GREY_TXT : INK, 'center');
-            if (opt.strike) {
-              var tw = e.w(String(v || ''), 7.2);
-              e.line(cx + COL / 2 - tw / 2 - 0.6, by + CH / 2 + 0.2,
-                     cx + COL / 2 + tw / 2 + 0.6, by + CH / 2 + 0.2, GREY_TXT, 0.2);
-            }
-          } else {
-            e.t(dash(v), cx + COL / 2, top + h / 2 + 1.2, 8.5,
-                opt.bold ? 'bold' : 'normal', greyThis ? GREY_TXT : INK, 'center');
-          }
-          if (opt.marks && opt.marks[i]) {
-            e.line(cx + 3, top + h - 1, cx + COL - 3, top + h - 1,
-                   opt.marks[i] === 'blue' ? BLUE_MK : GREEN_MK, 0.45);
-          }
-        });
-      }
-      // grid
-      e.line(MX, top + h, MX + IN, top + h, RULE, 0.18);
-      for (var g = 0; g <= 4; g++) {
-        if (opt.merged && (g === 1 || g === 3)) continue;
-        var gx = MX + TLAB + g * COL;
-        e.line(gx, top, gx, top + h, RULE, 0.18);
-      }
-      e.line(MX, top, MX, top + h, RULE_D, 0.25);
-      e.line(MX + IN, top, MX + IN, top + h, RULE_D, 0.25);
-      y = top + h;
-    }
+    var T = makeTable(e, doc, [{ title: 'Air (T1)', span: 2 }, { title: 'Load (T2)', span: 2 }], 40);
+    function tableHeader(title) { y = T.header(title, y, true); }   // L/R in the probe cells
+    function trow(label, vals, opt) { y = T.row(label, vals, y, opt); }
 
     // which corrected max/min were used (the blue and green underlines)
     function markers(prefix, key) {
@@ -553,9 +707,9 @@
 
     function measurementTable(prefix, title, greyed) {
       tableHeader(title);
-      trow(prefix === 'af' ? 'Probe Serial No' : ['Probe Serial No: (same', 'as As Found)'],
+      trow(prefix === 'af' ? 'Probe Serial No' : 'Probe Serial No (as As Found)',
            cellset(prefix, 'probe'),
-           { boxed: true, required: prefix === 'af', h: 5.4,
+           { boxed: true, inlineLR: true, required: prefix === 'af', h: 5.4,
              greyvals: greyed ? [0, 1, 2, 3] : [], strike: greyed });
       trow('Display (from product)',
            [txtOf(prefix + '_air_display') || val(prefix + '_air_display'),
@@ -590,10 +744,10 @@
     y += 1.6;
 
     var adjNeeded = alDone;
-    var alTxt = txtOf('alStatus');
-    banner(alTxt || (adjNeeded
+    // Short enough for one line; the worksheet keeps the fuller wording.
+    banner(adjNeeded
       ? 'Adjustment carried out \u2014 see the As Left readings below.'
-      : 'Adjustment not needed \u2014 Air and Load are within tolerance, so As Left and AL Display cycle are crossed out.'),
+      : 'Adjustment not needed \u2014 As Found within tolerance \u00b10.5 \u00b0C. As Left not applicable.',
       6, 7.6, stateOf('alStatus') === 'bad');
 
     measurementTable('al', 'As Left (AL)', !adjNeeded);
@@ -674,126 +828,298 @@
     });
     y += 2.5;
 
-    // ---------------- signatures ----------------
-    var SIG_H = 9.1;
-    [["Engineer's Name", val('engineer'), val('engineerSignature') || val('engineer'), val('engDate') || val('date'), true],
-     ["Checker's Name:", val('checker'), val('checkerSignature'), val('checkDate'), false]
-    ].forEach(function (r) {
-      var top = y;
-      e.box(MX, top, IN, SIG_H, null, RULE_D, 0.25);
-      var a = MX + IN * 0.36, b = MX + IN * 0.68;
-      e.line(a, top, a, top + SIG_H, RULE_D, 0.25);
-      e.line(b, top, b, top + SIG_H, RULE_D, 0.25);
-      e.t(r[0], MX + 2, top + 3.4, 7.3);
-      if (r[4]) {
-        var lw = e.w(r[0], 7.3);
-        e.star(MX + 2 + lw + 0.6, top + 2.2);
-        e.t(':', MX + 2 + lw + 2.4, top + 3.4, 7.3);
-      }
-      if (r[1]) e.t(r[1], MX + 5, top + 7.6, 8.5, 'bold');
-      e.t('Signature:', a + 2, top + 3.4, 7.3);
-      if (r[2]) {
-        if (haveScript) {
-          doc.setFont('DancingScript', 'normal');
-          doc.setFontSize(13);
-          doc.setTextColor(SIGCOL[0], SIGCOL[1], SIGCOL[2]);
-          doc.text(String(r[2]), a + 5, top + 8);
-          doc.setFont('helvetica', 'normal');
-        } else {
-          e.t(r[2], a + 5, top + 8, 11, 'italic', SIGCOL);
-        }
-      }
-      e.t('Date:', b + 2, top + 3.4, 7.3);
-      if (r[3]) e.t(r[3], b + 6, top + 7.6, 8.5, 'bold');
-      y = top + SIG_H;
+    // ---------------- comments, then signatures ----------------
+    y = drawCommentsAndSignatures(e, doc, y, haveScript, {
+      certNo: val('certNo') || txtOf('certNo'),
+      subtitle: head1924.subtitle
     });
-    y += 2.5;
 
-    // ---------------- comments ----------------
-    // The box grows to fit whatever is written, and anything that still will
-    // not fit continues on a second page. An earlier version capped this at
-    // four lines and threw the rest away silently.
-    var comments = val('comments');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-    var comLines = comments ? doc.splitTextToSize(comments, IN - 6) : [];
-    var HEAD_H = 5.0, LINE_H = 3.3, PAD_TOP = 2.6, PAD_BOT = 1.8, FOOT_H = 4.4;
-    var availH = (PH - 6 - FOOT_H) - y;
-    var maxLines = Math.max(0, Math.floor((availH - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H));
-    var shown = comLines.slice(0, maxLines);
-    var overflow = comLines.slice(maxLines);
-    var comH = Math.max(12, HEAD_H + PAD_TOP + shown.length * LINE_H + PAD_BOT);
-
-    function commentsHeader(top, suffix) {
-      e.box(MX, top, IN, HEAD_H, HDR_BG, null);
-      e.t('Comments' + (suffix || ''), MX + 2, top + 4, 8.5, 'bold');
-      if (!suffix) e.t('(calculations, deviations, customer requests)', MX + 20, top + 4, 7.3, 'normal', NOTE);
-    }
-
-    // Three cases: it all fits, there is nothing to say, or it needs page 2.
-    // When it needs page 2, page 1 gets a one-line pointer rather than an
-    // empty box that pushes the layout past the page edge.
-    var goesOverleaf = overflow.length > 0;
-    if (!goesOverleaf) {
-      e.box(MX, y, IN, comH, null, RULE_D, 0.25);
-      commentsHeader(y + 0.2);
-      shown.forEach(function (ln, i) {
-        e.t(ln, MX + 3, y + HEAD_H + PAD_TOP + i * LINE_H, 8);
-      });
-      y += comH;
-    } else {
-      var noteH = 7;
-      e.box(MX, y, IN, noteH, null, RULE_D, 0.25);
-      e.box(MX + 0.2, y + 0.2, IN - 0.4, noteH - 0.4, HDR_BG, null);
-      e.t('Comments', MX + 2, y + 4.6, 8.5, 'bold');
-      e.t('\u2014 continued on page 2', MX + 22, y + 4.6, 7.3, 'italic', NOTE);
-      y += noteH;
-      overflow = comLines;   // put the whole comment on page 2, not a fragment
-    }
-
-    // A line saying when this copy was produced, so a regenerated certificate
-    // can be told apart from the one it replaced.
-    var stamp = new Date();
-    function two(n) { return String(n).padStart(2, '0'); }
-    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var stampTxt = 'Generated ' + two(stamp.getDate()) + '/' + MONTHS[stamp.getMonth()] + '/' + stamp.getFullYear()
-                 + ' ' + two(stamp.getHours()) + ':' + two(stamp.getMinutes());
-    if (SHOW_GENERATED_STAMP) e.t(stampTxt, MX, y + 3.4, 6.2, 'normal', NOTE);
-    if (goesOverleaf) e.t('Page 1 of 2', PW - MX, y + 3.4, 6.2, 'normal', NOTE, 'right');
-    y += FOOT_H;
-
-    // ---------------- page 2, only if the comments need it ----------------
-    if (overflow.length) {
-      doc.addPage();
-      var y2 = MT;
-      e.t('Engineer Calibration Worksheet', MX, y2 + 5, 12, 'bold');
-      e.t('Standard 19 range/24 range \u2014 continuation', MX, y2 + 9.2, 7.5, 'bold', [40, 70, 120]);
-      e.t('No: ' + (val('certNo') || ''), PW - MX, y2 + 5, 11, 'bold', INK, 'right');
-      e.t([val('site'), val('serial'), val('jobRef')].filter(Boolean).join('  \u00b7  '),
-          PW - MX, y2 + 9.2, 7, 'normal', NOTE, 'right');
-      e.line(MX, y2 + 11.5, PW - MX, y2 + 11.5, RULE_D, 0.3);
-      y2 += 15;
-      var perPage = Math.floor((PH - 16 - y2 - HEAD_H - PAD_TOP - PAD_BOT) / LINE_H);
-      var rest = overflow.slice(0, perPage);
-      var boxH = HEAD_H + PAD_TOP + rest.length * LINE_H + PAD_BOT;
-      e.box(MX, y2, IN, boxH, null, RULE_D, 0.25);
-      commentsHeader(y2 + 0.2, ' (continued)');
-      rest.forEach(function (ln, i) {
-        e.t(ln, MX + 3, y2 + HEAD_H + PAD_TOP + i * LINE_H, 8);
-      });
-      y2 += boxH;
-      if (overflow.length > perPage) {
-        e.t('\u2026 ' + (overflow.length - perPage) + ' further line(s) not shown \u2014 shorten the comments.',
-            MX, y2 + 4, 6.5, 'italic', RED);
-      }
-      if (SHOW_GENERATED_STAMP) e.t(stampTxt, MX, PH - 8, 6.2, 'normal', NOTE);
-      e.t('Page 2 of 2', PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
-    }
-
-    // A layout that runs past the page edge is a bug, not a certificate.
     if (y > PH - 6) {
       console.warn('LabCal vector PDF: content ran to ' + y.toFixed(1) + ' mm (page is ' + PH + ' mm).');
     }
 
+    return doc;
+  }
+
+  // =====================================================================
+  // Certificate — Standard Non-Medical Device
+  // =====================================================================
+  // Same furniture as the 19/24 sheet. The differences: the tolerance depends
+  // on the device type, the columns are Air L/R, Load and Chart Recorder, and
+  // Load and Chart Recorder can be marked not applicable for a given unit.
+  function buildSNMD() {
+    var jsPDFctor = (global.jspdf && global.jspdf.jsPDF) || global.jsPDF;
+    if (!jsPDFctor) throw new Error('The PDF library did not load.');
+    var doc = new jsPDFctor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+
+    var haveScript = false;
+    try {
+      if (global.LabCalDancingFont) {
+        doc.addFileToVFS('DancingScript.ttf', global.LabCalDancingFont);
+        doc.addFont('DancingScript.ttf', 'DancingScript', 'normal');
+        haveScript = true;
+      }
+    } catch (e) { haveScript = false; }
+
+    var e = new Engine(doc);
+    var device = val('deviceType') || 'Fridge';
+    var tolHint = ascii(txtOf('deviceToleranceHint'));
+    var head = headingFor('Engineer Calibration Worksheet',
+                          'Standard Non-Medical Device \u2014 ' + device + (tolHint ? '  \u00b7  ' + tolHint : ''));
+    var y = drawHeader(e, doc, { title: head.title, subtitle: head.subtitle, number: val('certNo') });
+
+    // ---------------- meta ----------------
+    var META = [
+      ['Job Reference No', val('jobRef'), 'Date', val('date') || val('dateNative')],
+      ['Site', val('site'), 'Department', val('department')],
+      ['Model', val('model'), 'Serial No', val('serial')],
+      ['Manufacturer', val('manufacturer') === 'Other...' ? val('manufacturerOther') : val('manufacturer'),
+        'Load', val('load')]
+    ];
+    var half = IN / 2;
+    META.forEach(function (r, i) {
+      var yy = y + i * 5.2;
+      [[r[0], r[1], MX], [r[2], r[3], MX + half]].forEach(function (pair) {
+        e.t(pair[0], pair[2], yy, 8);
+        var w = e.w(pair[0], 8);
+        e.star(pair[2] + w + 0.6, yy - 1.2);
+        e.t(':', pair[2] + w + 2.4, yy, 8);
+        e.t(pair[1], pair[2] + 34, yy, 8.5, 'bold');
+        e.stroke(RULE_D); doc.setLineWidth(0.15);
+        doc.setLineDashPattern([0.4, 0.6], 0);
+        doc.line(pair[2] + 33, yy + 1.4, pair[2] + half - 6, yy + 1.4);
+        doc.setLineDashPattern([], 0);
+      });
+    });
+    y += META.length * 5.2 - 0.5;
+
+    // Variations sit on the same line as the last meta row's spare half.
+    var variation = val('variationNote');
+    if (variation) {
+      e.t('Non-Standard Variations', MX, y + 3, 8);
+      var vw = e.w('Non-Standard Variations', 8);
+      e.star(MX + vw + 0.6, y + 1.8);
+      e.t(':', MX + vw + 2.4, y + 3, 8);
+      e.t(variation, MX + 34, y + 3, 8.5, 'bold');
+      y += 4.6;
+    }
+    y += 1;
+
+    // ---------------- instrument + controller block ----------------
+    var LAB_W = 40, ROW_H = 8, CT_ROW = 6.4;
+    var blockTop = y, blockH = ROW_H * 2 + CT_ROW * 2;
+    e.box(MX, blockTop, IN, blockH, null, RULE_D, 0.25);
+    e.line(MX + LAB_W, blockTop, MX + LAB_W, blockTop + blockH, RULE_D, 0.25);
+    e.line(MX, blockTop + ROW_H, MX + IN, blockTop + ROW_H, RULE_D, 0.18);
+    e.line(MX, blockTop + ROW_H * 2, MX + IN, blockTop + ROW_H * 2, RULE_D, 0.18);
+    e.line(MX + LAB_W, blockTop + ROW_H * 2 + CT_ROW, MX + IN, blockTop + ROW_H * 2 + CT_ROW, RULE_D, 0.18);
+
+    var r1 = blockTop + 5.2;
+    e.t('Digital Reference Thermometer', MX + 2, r1, 6.8, 'bold');
+    var dCols = [56, 34, IN - LAB_W - 90];
+    var dxs = [], dacc = MX + LAB_W;
+    dCols.forEach(function (w) { dxs.push([dacc, w]); dacc += w; });
+    dxs.slice(1).forEach(function (c) { e.line(c[0], blockTop, c[0], blockTop + ROW_H, RULE_D, 0.18); });
+    e.label('Serial no', dxs[0][0] + 2, r1, 7, true);
+    e.pill(serialOnly(val('drtSerial')) || '\u2014', dxs[0][0] + 19, blockTop + 1.6, 34, 4.8, 7);
+    var dVal = e.label('Cal due', dxs[1][0] + 2, r1, 7, false);
+    e.t(txtOf('drtDue') || val('drtDue') || '\u2014', dVal + 1, r1, 8.5, 'bold');
+    var drtStatus = ascii(txtOf('drtCalStatus'));
+    if (drtStatus) e.badge(drtStatus, dxs[2][0] + 2, blockTop + 1.8, dxs[2][1] - 4, 4.4);
+
+    var rtTop = blockTop + ROW_H, r2 = rtTop + 5.2;
+    e.t('Room Temperature (RT)', MX + 2, r2, 6.8, 'bold');
+    var rtCols = [56, 29, 20, 20, IN - LAB_W - 125];
+    var xs = [], acc = MX + LAB_W;
+    rtCols.forEach(function (w) { xs.push([acc, w]); acc += w; });
+    xs.slice(1).forEach(function (c) { e.line(c[0], rtTop, c[0], rtTop + ROW_H, RULE_D, 0.18); });
+    e.label('RT Ref', xs[0][0] + 2, r2, 7, true);
+    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, rtTop + 1.6, 19, 4.8, 6.8);
+    var rtv = ascii(txtOf('rtRefValidity'));
+    if (rtv) e.badge(rtv, xs[0][0] + 34, rtTop + 1.8, xs[0][1] - 36, 4.4);
+    [[xs[1], 'Cal due:', txtOf('rtDue') || val('rtDue') || monthYear(rtv), false],
+     [xs[2], 'Max', val('rtMax'), true],
+     [xs[3], 'Min', val('rtMin'), true],
+     [xs[4], 'Average:', txtOf('rtAvg') || val('rtAvg'), false]
+    ].forEach(function (col) {
+      var vxx = e.label(col[1], col[0][0] + 2, r2, 7, col[3]);
+      e.t(col[2] || '\u2014', vxx + 1, r2, 8.5, 'bold');
+    });
+
+    var ctTop = blockTop + ROW_H * 2;
+    e.t('Controller Settings', MX + 2, ctTop + CT_ROW - 1.6, 6.8, 'bold');
+    var ctSplit = MX + LAB_W + 66;
+    e.line(ctSplit, ctTop, ctSplit, blockTop + blockH, RULE_D, 0.18);
+
+    var alNotNeededYet = (function () {
+      var t = document.getElementById('alTable');
+      return t ? t.classList.contains('notNeeded') : true;
+    })();
+
+    // This worksheet has a single offsets field per row, not Cal 1 / Cal 2.
+    function ctLine(top, offLabel, offVal, spLabel, spVal, note, greyed) {
+      var mid = top + CT_ROW - 2.2;
+      var x = e.label(offLabel, MX + LAB_W + 2, mid, 6.8, true);
+      if (greyed) e.chip(offVal, x + 1, mid - 3.1, 16);
+      else e.t(offVal || '\u2014', x + 1, mid, 7.8, 'bold');
+      var sx = e.label(spLabel, ctSplit + 2, mid, 6.8, true);
+      if (greyed) e.chip(spVal, sx + 1, mid - 3.1, 14);
+      else e.t(spVal || '\u2014', sx + 1, mid, 8.5, 'bold');
+      if (note) e.t('Nearest offset point used: ' + note, sx + 17, mid, 6.2, 'normal', [50, 90, 160]);
+    }
+    ctLine(ctTop, 'Initial offsets', val('initialOffsets'), 'Initial set point', val('initialSetpoint'),
+           (txtOf('initialNearestPoint') || '').replace('\u2014', ''), false);
+    ctLine(ctTop + CT_ROW, 'Final offsets', alNotNeededYet ? 'N/A' : val('finalOffsets'),
+           'Final set point', alNotNeededYet ? '\u2013N/A\u2013' : val('finalSetpoint'),
+           alNotNeededYet ? '' : (txtOf('finalNearestPoint') || '').replace('\u2014', ''), alNotNeededYet);
+    y = blockTop + blockH + 2.5;
+
+    // ---------------- banners ----------------
+    function banner(text, h, size, bad) { y = drawBanner(e, doc, y, text, bad, size); }
+    banner(txtOf('afStatus') || 'As Found: readings recorded.', 6, 7.8, stateOf('afStatus') === 'bad');
+
+    // ---------------- measurement tables ----------------
+    var T = makeTable(e, doc, [{ title: 'Air', span: 2 },
+                               { title: 'Load', span: 1 },
+                               { title: 'Chart Recorder', span: 1 }], 44);
+
+    function cells(prefix, key) {
+      return [prefix + '_air1_' + key, prefix + '_air2_' + key,
+              prefix + '_load_' + key, prefix + '_chart_' + key].map(function (id) {
+        return txtOf(id) || val(id);
+      });
+    }
+    function marks(prefix, key) {
+      var out = {};
+      ['air1', 'air2', 'load', 'chart'].forEach(function (col, i) {
+        var el = document.getElementById(prefix + '_' + col + '_' + key + '_calc');
+        if (!el) return;
+        if (el.classList.contains('selectedHigh')) out[i] = 'blue';
+        if (el.classList.contains('selectedLow')) out[i] = 'green';
+      });
+      return Object.keys(out).length ? out : null;
+    }
+
+    function table(prefix, title, greyed) {
+      y = T.header(title, y, true);          // L/R shown in the probe cells
+      var g = greyed;
+      y = T.row(prefix === 'af' ? 'Probe Serial No' : 'Probe Serial No (as As Found)',
+                cells(prefix, 'probe'), y,
+                { boxed: true, inlineLR: true, required: prefix === 'af', h: 5.4,
+                  greyvals: g ? [0, 1, 2, 3] : [], strike: g });
+      y = T.row('Display (from product)',
+                [txtOf(prefix + '_air_display') || val(prefix + '_air_display'),
+                 txtOf(prefix + '_load_display') || val(prefix + '_load_display'),
+                 txtOf(prefix + '_chart_display') || val(prefix + '_chart_display')], y,
+                { merged: true, tint: g ? GREY_BG : GREEN_BG, bold: true, required: true, grey: g });
+      y = T.row('Reference Max', cells(prefix, 'max'), y,
+                { tint: g ? GREY_BG : GREEN_BG, required: true, grey: g });
+      y = T.row('Probe Correction value', cells(prefix, 'max_corr'), y,
+                { tint: g ? GREY_BG : AMBER_BG, grey: g });
+      y = T.row('Max + Correction', cells(prefix, 'max_calc'), y,
+                { bold: true, grey: g, marks: g ? null : marks(prefix, 'max') });
+      y = T.row('Reference Min', cells(prefix, 'min'), y,
+                { tint: g ? GREY_BG : GREEN_BG, required: true, grey: g });
+      y = T.row('Probe Correction Value', cells(prefix, 'min_corr'), y,
+                { tint: g ? GREY_BG : AMBER_BG, grey: g });
+      y = T.row('Min + Correction', cells(prefix, 'min_calc'), y,
+                { bold: true, grey: g, marks: g ? null : marks(prefix, 'min') });
+      y = T.row(['Average ref: Min & Max', '(after correction)'],
+                [txtOf(prefix + '_air_avg') || val(prefix + '_air_avg'),
+                 txtOf(prefix + '_load_avg') || val(prefix + '_load_avg'),
+                 txtOf(prefix + '_chart_avg') || val(prefix + '_chart_avg')], y,
+                { merged: true, bold: true, h: 6.2, tint: g ? GREY_BG : null, grey: g });
+      y = T.row(['Difference of Average', 'Reference vs Display'],
+                [txtOf(prefix + '_air_diff') || val(prefix + '_air_diff'),
+                 txtOf(prefix + '_load_diff') || val(prefix + '_load_diff'),
+                 txtOf(prefix + '_chart_diff') || val(prefix + '_chart_diff')], y,
+                { merged: true, bold: true, h: 6.2, grey: g,
+                  tints: g ? [GREY_BG, GREY_BG, GREY_BG]
+                           : [tintFor(stateOf(prefix + '_air_diff')),
+                              tintFor(stateOf(prefix + '_load_diff')),
+                              tintFor(stateOf(prefix + '_chart_diff'))] });
+    }
+
+    table('af', 'As Found (AF)', false);
+    y += 1.6;
+    // The on-screen wording is deliberately fuller; on paper a single line
+    // reads better and buys a row of space.
+    var tolTxt = (tolHint.match(/[\u00b1][^\s]*\s*\u00b0C/) || [''])[0];
+    banner(alNotNeededYet
+      ? ('Adjustment not needed \u2014 As Found within tolerance' + (tolTxt ? ' ' + tolTxt : '') + '. As Left not applicable.')
+      : 'Adjustment carried out \u2014 see the As Left readings below.',
+      6, 7.6, stateOf('alStatus') === 'bad');
+    table('al', 'As Left (AL)', alNotNeededYet);
+    y += 2;
+
+    // ---------------- display cycle ----------------
+    var DCW = [24, 22, 22, 26, 34, 38];
+    var tot = DCW.reduce(function (a, b) { return a + b; }, 0);
+    DCW = DCW.map(function (w) { return w * IN / tot; });
+    var hh = 5;
+    e.box(MX, y, IN, hh, HDR_BG, RULE_D, 0.25);
+    var cx = MX;
+    ['Display cycle', 'Max', 'Min', 'Average used', 'AF Probes in:', 'Cycle start:'].forEach(function (lab, i) {
+      e.t(lab, cx + DCW[i] / 2, y + hh - 1.4, 7.3, 'bold', INK, 'center');
+      if (i) e.line(cx, y, cx, y + hh, RULE_D, 0.25);
+      cx += DCW[i];
+    });
+    y += hh;
+    var rh = 5.4;
+    [['AF', 'Air', 'af_cycle_air_max', 'af_cycle_air_min', 'af_cycle_air_avg', false],
+     ['AF', 'Load', 'af_cycle_load_max', 'af_cycle_load_min', 'af_cycle_load_avg', false],
+     ['AL', 'Air', 'al_cycle_air_max', 'al_cycle_air_min', 'al_cycle_air_avg', alNotNeededYet],
+     ['AL', 'Load', 'al_cycle_load_max', 'al_cycle_load_min', 'al_cycle_load_avg', alNotNeededYet]
+    ].forEach(function (r, idx) {
+      var top = y, grey = r[5];
+      var tint = grey ? GREY_BG : GREEN_BG;
+      var cxx = MX + DCW[0];
+      for (var i = 1; i <= 3; i++) { e.box(cxx + 0.2, top + 0.2, DCW[i] - 0.4, rh - 0.4, tint, null); cxx += DCW[i]; }
+      if (idx % 2 === 0) {
+        e.box(MX + 0.2, top + 0.2, DCW[0] * 0.42, rh * 2 - 0.4, HDR_BG, null);
+        e.t(r[0], MX + DCW[0] * 0.21, top + rh + 1, 7.5, 'bold', INK, 'center');
+      }
+      e.t(r[1], MX + DCW[0] * 0.46, top + rh - 1.8, 7, 'normal', grey ? GREY_TXT : INK);
+      cxx = MX + DCW[0];
+      [r[2], r[3], r[4]].forEach(function (id, i) {
+        e.t(dash(txtOf(id) || val(id)), cxx + DCW[i + 1] / 2, top + rh - 1.8, 8.5, 'bold', grey ? GREY_TXT : INK, 'center');
+        cxx += DCW[i + 1];
+      });
+      var tx = MX + DCW[0] + DCW[1] + DCW[2] + DCW[3];
+      if (idx === 0) {
+        e.t(val('af_probes_in_h') || '\u2014', tx + 10, top + rh - 1.8, 8.5, 'bold', INK, 'center');
+        e.t(':', tx + 17, top + rh - 1.8, 8, 'normal', INK, 'center');
+        e.t(val('af_probes_in_m') || '\u2014', tx + 24, top + rh - 1.8, 8.5, 'bold', INK, 'center');
+        var sx = tx + DCW[4];
+        e.t(val('af_cycle_start_h') || '\u2014', sx + 10, top + rh - 1.8, 8.5, 'bold', INK, 'center');
+        e.t(':', sx + 17, top + rh - 1.8, 8, 'normal', INK, 'center');
+        e.t(val('af_cycle_start_m') || '\u2014', sx + 24, top + rh - 1.8, 8.5, 'bold', INK, 'center');
+      } else if (idx === 1) {
+        e.t('AL Adj made:', tx + 1.5, top + rh - 1.8, 6.8);
+        e.chip(val('al_adj_made') || (alNotNeededYet ? 'Adjustment not needed' : 'Adjustment made'),
+               tx + DCW[4] + 1, top + 1.2, DCW[5] - 2);
+      } else if (idx === 2) {
+        e.label('Cycle start', tx + 1.5, top + rh - 1.8, 6.8, true);
+        if (!alNotNeededYet) {
+          e.t(val('al_cycle_start_h') || '\u2014', tx + DCW[4] + 8, top + rh - 1.8, 8.5, 'bold', INK, 'center');
+          e.t(':', tx + DCW[4] + 15, top + rh - 1.8, 8, 'normal', INK, 'center');
+          e.t(val('al_cycle_start_m') || '\u2014', tx + DCW[4] + 22, top + rh - 1.8, 8.5, 'bold', INK, 'center');
+        } else {
+          e.chip('N/A', tx + DCW[4] + 4, top + 1.2, 9);
+          e.chip('N/A', tx + DCW[4] + 18, top + 1.2, 9);
+        }
+      }
+      e.line(MX, top + rh, MX + IN, top + rh, RULE, 0.18);
+      var gx = MX;
+      DCW.forEach(function (w) { gx += w; e.line(gx, top, gx, top + rh, RULE, 0.18); });
+      e.line(MX, top, MX, top + rh, RULE_D, 0.25);
+      e.line(MX + IN, top, MX + IN, top + rh, RULE_D, 0.25);
+      y = top + rh;
+    });
+    y += 2.5;
+
+    // ---------------- comments, then signatures ----------------
+    y = drawCommentsAndSignatures(e, doc, y, haveScript, { certNo: val('certNo'), subtitle: head.subtitle });
     return doc;
   }
 
@@ -1014,13 +1340,7 @@
       };
     }
 
-    function banner(text, good) {
-      var h = 6;
-      e.box(MX, y, IN, h, good ? GREEN_BG : [255, 231, 231],
-            good ? GREEN_BD : [214, 150, 150], 0.2);
-      e.t(text, MX + 3, y + h - 2, 7.8, 'bold', good ? GREEN_TX : [140, 30, 30]);
-      y += h + 1.6;
-    }
+    function banner(text, good) { y = drawBanner(e, doc, y, text, !good); }
 
     var afResult = sectionResult('found');
     banner(afResult.allPass
@@ -1154,7 +1474,11 @@
   }
 
   global.LabCalVectorPdf = {
-    supports: function (sheet) { return sheet === 'ws19_24' || sheet === 'barkey'; },
+    supports: function (sheet) {
+      return sheet === 'ws19_24' || sheet === 'barkey' || sheet === 'snmd';
+    },
+    buildSNMD: buildSNMD,
+    blobSNMD: function () { return buildSNMD().output('blob'); },
     build19_24: build19_24,
     blob19_24: function () { return build19_24().output('blob'); },
     buildBarkey: buildBarkey,

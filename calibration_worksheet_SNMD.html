@@ -15,6 +15,9 @@
 <script src="labcal_certs.js"></script>
 <script src="labcal_units.js"></script>
 <script src="labcal_pdf.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="labcal_font_dancing.js"></script>
+<script src="labcal_vector_pdf.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -150,7 +153,7 @@
       <td class="label" style="width:31%">Average: <input class="input calc" id="rtAvg" readonly><span id="rtRangeWarn" class="hintText warn" style="display:none;margin-left:4px;font-weight:700;white-space:nowrap">Max must be ≥ Min</span></td>
     </tr>
     <tr><td rowspan="2" class="label">Controller Settings</td><td colspan="2">Initial offsets <span class="req">*</span>: <input class="input" id="initialOffsets"></td><td colspan="3">Initial set point <span class="req">*</span>: <input class="input num" inputmode="decimal" id="initialSetpoint" placeholder="e.g. 5, -20, -34"> <span class="small" id="setpointRangeHint" style="color:#333"></span><br><span class="small" style="color:#333">Nearest offset point used: <b id="initialNearestPoint">—</b></span></td></tr>
-    <tr><td colspan="2">Final offsets <span class="req" title="Required when As Left needs completing">*</span>: <input class="input" id="finalOffsets"></td><td colspan="3">Final set point <span class="req" title="Required when As Left needs completing">*</span>: <input class="input num" inputmode="decimal" id="finalSetpoint"></td></tr>
+    <tr><td colspan="2">Final offsets <span class="req" title="Required when As Left needs completing">*</span>: <input class="input" id="finalOffsets"></td><td colspan="3">Final set point <span class="req" title="Required when As Left needs completing">*</span>: <input class="input num" inputmode="decimal" id="finalSetpoint"><br><span class="small" style="color:#333">Nearest offset point used: <b id="finalNearestPoint">—</b></span></td></tr>
   </table>
 
   <div class="probeHint"><b>Probe dropdown:</b> choose the probe/port in each column. The app will use the closest correction to the Initial Set Point for AF and to the Final Set Point for AL. The selected correction is copied into Max Correction and Min Correction automatically.<br><b>Air calculation markers:</b> blue underline = highest corrected maximum used; green underline = lowest corrected minimum used.</div>
@@ -195,13 +198,17 @@
     <tr id="afCycleLoadRow" class="notApplicableCol"><td>Load <span class="naBadge">N/A</span></td><td><input class="input num" id="af_cycle_load_max" data-decimals="1" placeholder="xx.x" disabled></td><td><input class="input num" id="af_cycle_load_min" data-decimals="1" placeholder="xx.x" disabled></td><td><input class="input calc" id="af_cycle_load_avg" readonly disabled></td><td class="label">AL Adj made:</td><td><input class="input" id="al_adj_made"></td></tr>
     <tr id="alCycleAirRow"><td rowspan="2" class="subhead">AL</td><td>Air</td><td><input class="input num" inputmode="decimal" id="al_cycle_air_max" data-decimals="1" placeholder="xx.x"></td><td><input class="input num" inputmode="decimal" id="al_cycle_air_min" data-decimals="1" placeholder="xx.x"></td><td><input class="input calc" id="al_cycle_air_avg" readonly></td><td class="label">Cycle start: <span class="req" title="Required when As Left needs completing">*</span></td><td><span style="display:flex;align-items:center;gap:2px;justify-content:center"><select id="al_cycle_start_h" class="input timeSel" style="width:44px"></select>:<select id="al_cycle_start_m" class="input timeSel" style="width:44px"></select></span></td></tr>
     <tr id="alCycleLoadRow" class="notApplicableCol"><td>Load <span class="naBadge">N/A</span></td><td><input class="input num" id="al_cycle_load_max" data-decimals="1" placeholder="xx.x" disabled></td><td><input class="input num" id="al_cycle_load_min" data-decimals="1" placeholder="xx.x" disabled></td><td><input class="input calc" id="al_cycle_load_avg" readonly disabled></td><td colspan="2"></td></tr>
-    <tr><td colspan="3">Engineer's Name <span class="req">*</span>: <input class="input" id="engineer"></td><td colspan="2">Signature: <span id="engineerSignature" class="signature"></span></td><td colspan="2">Date: <input class="input" id="engDate" type="text" readonly style="text-align:center"></td></tr>
-    <tr><td colspan="3">Checker's Name: <input class="input" id="checker"></td><td colspan="2">Signature: <span id="checkerSignature" class="signature"></span></td><td colspan="2">Date: <input class="input" id="checkDate" type="date"></td></tr>
   </table>
   <div style="margin-top:8px;border:1px solid var(--line)">
     <div class="label" style="padding:4px 6px;background:#e3e3e3">Comments <span class="muted">(calculations, deviations, customer requests)</span></div>
     <textarea id="comments" style="width:100%;height:60px;border:0;box-sizing:border-box;font-size:12px;padding:6px;resize:vertical;display:block"></textarea>
   </div>
+  <!-- Signatures sit below the comments, so the comments read as part of
+       the record rather than an afterthought at the foot of the page. -->
+  <table style="margin-top:8px;table-layout:fixed">
+    <tr><td colspan="3">Engineer's Name <span class="req">*</span>: <input class="input" id="engineer"></td><td colspan="2">Signature: <span id="engineerSignature" class="signature"></span></td><td colspan="2">Date: <input class="input" id="engDate" type="text" readonly style="text-align:center"></td></tr>
+    <tr><td colspan="3">Checker's Name: <input class="input" id="checker"></td><td colspan="2">Signature: <span id="checkerSignature" class="signature"></span></td><td colspan="2">Date: <input class="input" id="checkDate" type="date"></td></tr>
+  </table>
   <div class="note">Prototype calculation rules: digital reference thermometer dropdown fills the cal due date automatically; correction and reference maths, Display cycle, Display from product and Room Temperature average all rounded to 1 decimal place using improved robust mathematical rounding across all fields. Select the probe from the dropdown; the nearest correction to the Initial Set Point is used for As Found, and the nearest correction to the Final Set Point is used for As Left. Display from product is calculated from Display cycle Max and Min. Air reference average uses the highest corrected maximum and the lowest corrected minimum; those two values are visibly marked in the table. Load and Chart Recorder are not applicable on this worksheet and are not used in any calculation or status. Adjustment not needed is applied only when the As Found Air result is present and within the tolerance for the selected Standard Non-Medical Device (Fridge ±0.5 °C, Freezer ±3.0 °C, Incubator ±0.5 °C). If the Air result is missing or outside tolerance, As Left remains active and must be completed.</div>
 </div>
 <script>
@@ -916,11 +923,12 @@ function nearestOffsetPoint(setpoint){
   return points.reduce((best,p)=>Math.abs(p-setpoint)<Math.abs(best-setpoint)?p:best,points[0]);
 }
 function refreshNearestOffsetDisplay(){
-  const el=document.getElementById('initialNearestPoint');
-  if(!el) return;
-  const sp=n('initialSetpoint');
-  const nearest=nearestOffsetPoint(sp);
-  el.textContent = nearest===null ? '—' : nearest+' °C';
+  [['initialNearestPoint','initialSetpoint'],['finalNearestPoint','finalSetpoint']].forEach(([elId,spId])=>{
+    const el=document.getElementById(elId);
+    if(!el) return;
+    const nearest=nearestOffsetPoint(n(spId));
+    el.textContent = nearest===null ? '—' : nearest+' °C';
+  });
 }
 function n(id){const v=parseFloat((document.getElementById(id)?.value||'').replace(',','.'));return Number.isFinite(v)?v:null}
 const DEVICE_SETPOINT_RANGES={
@@ -1656,6 +1664,14 @@ function excelFileName(){ return pdfFileName().replace(/\.pdf$/,'.xlsx'); }
 // to load — otherwise the old ~1 MB settings come back silently.
 function pdfQualityLabel(){
   if(!window.LabCalPdf) return ' · ⚠ labcal_pdf.js not loaded — using old large-file settings';
+  if(LabCalPdf.style && LabCalPdf.style()==='text'){
+    const missing=[];
+    if(!window.LabCalVectorPdf) missing.push('labcal_vector_pdf.js');
+    if(!window.jspdf) missing.push('jsPDF');
+    if(!window.LabCalDancingFont) missing.push('labcal_font_dancing.js');
+    if(missing.length) return ` · ⚠ Text selected but ${missing.join(', ')} did not load — using the image version`;
+    return ' · text certificate (~18 KB, selectable)';
+  }
   const p=LabCalPdf.current();
   return ` · quality: ${p.name} (${p.scale}×, q${p.quality})`;
 }
@@ -1823,7 +1839,36 @@ function markJobsheetDone(){
   if(!serialEl || !serialEl.value) return;
   LabCalJobsheet.markDone(serialEl.value, certEl?certEl.value:'');
 }
+// Text-based certificate; any failure falls through to the image path.
+async function generateVectorPDF(){
+  const filename=pdfFileName();
+  const btn=document.getElementById('generateBtn');
+  const originalLabel=btn.textContent;
+  btn.disabled=true; btn.textContent='Generating PDF…';
+  try{
+    if(!runPreGenerationChecks()) return true;
+    const blob=LabCalVectorPdf.blobSNMD();
+    reportPdfSize(blob.size);
+    if(window.LabCalSave){ await LabCalSave.deliver(blob, filename); }
+    else { downloadBlob(blob,filename); }
+    saveUnitSnapshot();
+    fileCertificateForToday(blob, filename);
+    markJobsheetDone();
+    return true;
+  }catch(err){
+    console.error('Vector PDF failed, falling back to the image version:', err);
+    alert('The text-based certificate could not be produced, so the standard one was used instead.\n\n'+(err&&err.message?err.message:err));
+    return false;
+  }finally{
+    btn.disabled=false; btn.textContent=originalLabel;
+  }
+}
+
 async function generatePDF(){
+  if(window.LabCalPdf && LabCalPdf.style && LabCalPdf.style()==='text'
+     && window.LabCalVectorPdf && window.LabCalVectorPdf.blobSNMD && window.jspdf){
+    if(await generateVectorPDF()) return;
+  }
   if(!runPreGenerationChecks()) return;
   const btn=document.getElementById('generateBtn');
   const originalLabel=btn.textContent;

@@ -198,7 +198,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.32</span>
+    <span id="footYear">v1.34</span>
   </footer>
 
 </div>
@@ -282,7 +282,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.32 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.34 · ' + d.getFullYear();
 }
 
 renderCards();

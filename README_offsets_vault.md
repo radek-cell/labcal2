@@ -1,7 +1,68 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.32)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.34)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.34 — everything on one page
+
+The Non-Medical certificate was running to two pages. Three changes, each of
+which also tightens the other sheets:
+
+**Left/Right moved into the probe cells.** The coloured L and R dots now sit
+beside each probe serial instead of occupying a whole sub-header row — about
+9 mm saved per certificate, and it reads more directly: the marker is next to
+the thing it labels.
+
+**One-line status wording.** The certificate now writes its own concise line —
+*"Adjustment not needed — As Found within tolerance ±3.0 °C. As Left not
+applicable."* — rather than reproducing the fuller sentence the worksheet shows
+on screen. The screen keeps the longer wording, which is more useful while
+you're working.
+
+**Tighter top.** A couple of millimetres out of the header and the variations
+line.
+
+Result: Non-Medical, 19/24 and Barkey are all single page with a normal comment.
+A genuinely long comment still continues to page 2, as it should.
+
+### A bug this shook out
+
+Moving comments above the signatures meant the comments box no longer left room
+for the signatures beneath it — on a long comment the sign-off ran 7 mm off the
+bottom of the page. The generator's own overflow check caught it. The 19/24
+sheet now uses the same shared comments-and-signatures block as the others,
+which reserves that space properly.
+
+## v1.33 — comments above signatures, and Standard Non-Medical text certificates
+
+**Comments now sit above the signatures**, on the certificates *and* on the
+worksheets themselves (19/24 and Non-Medical). They read as part of the record
+rather than an afterthought below the sign-off.
+
+**Standard Non-Medical Device generates text certificates.** The setting reads
+**Text (19/24, Barkey, Non-Medical)**; SMD and Cloud Temp still use the image
+path. Roughly 19 KB. It carries the device type and its tolerance in the
+subtitle, the Non-Standard Variations line, and the Air / Load / Chart Recorder
+column layout, with Load and Chart Recorder printing as N/A where they do not
+apply to the unit.
+
+The Final set point on this worksheet also gained the **nearest offset point
+used**, matching the 19/24 sheet.
+
+### Under the bonnet
+
+Rather than copy the 19/24 table code, the measurement table is now one shared
+`makeTable()` that takes a description of the column bands — two-column groups
+get the Left/Right sub-header automatically. Comments-and-signatures and the
+status banners are shared too. Three duplicated copies of that logic was how the
+green-instead-of-red bug got in, so this is deliberate.
+
+The refactor was checked by rendering the 19/24 certificate before and after and
+comparing pixel by pixel: **identical**.
+
+Status banners also wrap now instead of running off the right edge — the
+Non-Medical "Load and Chart Recorder are not applicable" line was long enough to
+overflow.
 
 ## v1.32 — 19/24 instrument block, and the final offset point
 
@@ -588,13 +649,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v27**, caches all shared modules |
+| `sw.js` | Cache bumped to **v29**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v27, then hit **Refresh offline copy**.
+picks up v29, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
