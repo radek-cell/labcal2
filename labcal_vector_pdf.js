@@ -227,6 +227,18 @@
   // Title and subtitle on the left, LABCOLD wordmark on the right with the
   // certificate number beneath it. Every worksheet uses this, so they cannot
   // drift apart.
+  // Both worksheets retitle themselves as a VERIFICATION worksheet when the
+  // sheet number is the all-zero code. The title lives in #titleText, so read
+  // it rather than hard-coding "Calibration".
+  function headingFor(fallbackTitle, fallbackSubtitle) {
+    var live = ascii(txtOf('titleText'));
+    if (!live) return { title: fallbackTitle, subtitle: fallbackSubtitle };
+    if (/verification/i.test(live)) {
+      return { title: 'Engineer Verification Worksheet', subtitle: fallbackSubtitle };
+    }
+    return { title: fallbackTitle, subtitle: fallbackSubtitle };
+  }
+
   function drawHeader(e, doc, opts) {
     var y = MT;
     e.t(opts.title, MX, y + 5, 14, 'bold');
@@ -273,9 +285,10 @@
     var y = MT;
 
     // ---------------- header ----------------
+    var head1924 = headingFor('Engineer Calibration Worksheet', 'Standard 19 range/24 range');
     y = drawHeader(e, doc, {
-      title: 'Engineer Calibration Worksheet',
-      subtitle: 'Standard 19 range/24 range',
+      title: head1924.title,
+      subtitle: head1924.subtitle,
       number: val('certNo') || txtOf('certNo')
     });
 
@@ -801,18 +814,20 @@
     var y = MT;
 
     // ---------------- header ----------------
+    var headBk = headingFor('Engineer Calibration Worksheet', 'Barkey');
     y = drawHeader(e, doc, {
-      title: 'Engineer Calibration Worksheet',
-      subtitle: 'Barkey',
+      title: headBk.title,
+      subtitle: headBk.subtitle,
       number: val('sheetNo')
     });
 
     // ---------------- meta ----------------
+    // Engineer appears in the signature block and the reference thermometer
+    // has its own row below, so neither needs repeating here.
     var META = [
       ['Job reference', val('jobRef'), 'Date', val('date') || val('dateNative')],
       ['Site', val('site'), 'Department', val('dept')],
-      ['Model', val('model'), 'Serial number', val('serial')],
-      ['Engineer', val('eng'), 'Reference thermometer', val('refTherm')]
+      ['Model', val('model'), 'Serial number', val('serial')]
     ];
     var half = IN / 2;
     META.forEach(function (r, i) {
@@ -831,45 +846,54 @@
     });
     y += META.length * 5.2 + 3;
 
-    // ---------------- reference thermometer ----------------
-    // Laid out like the 19/24 sheet: serial in a pill, cal due date, and the
-    // validity badge beside it.
-    e.t('Digital Reference Thermometer Serial No', MX + 2, y + 3, 7.5);
-    e.pill(serialOnly(val('refTherm')) || '\u2014', MX + 62, y, 34, 4.8, 7);
-    e.t('Cal due date:', MX + 100, y + 3, 7.5);
-    e.t(monthYear(txtOf('refThermCalDue')) || '\u2014', MX + 122, y + 3, 8.5, 'bold');
+    // ---------------- reference thermometer + room temperature ----------------
+    // One bordered block, two labelled rows, the same shape as the room
+    // temperature row on the 19/24 sheet.
+    var LAB_W = 40, ROW_H = 8;
+    var blockTop = y, blockH = ROW_H * 2;
+    e.box(MX, blockTop, IN, blockH, null, RULE_D, 0.25);
+    e.line(MX + LAB_W, blockTop, MX + LAB_W, blockTop + blockH, RULE_D, 0.25);
+    e.line(MX, blockTop + ROW_H, MX + IN, blockTop + ROW_H, RULE_D, 0.18);
+
+    // --- row 1: digital reference thermometer ---
+    var r1 = blockTop + 5.2;
+    e.t('Digital Reference Thermometer', MX + 2, r1, 6.8, 'bold');
+    var dCols = [56, 34, IN - LAB_W - 90];
+    var dxs = [], dacc = MX + LAB_W;
+    dCols.forEach(function (w) { dxs.push([dacc, w]); dacc += w; });
+    dxs.slice(1).forEach(function (c) { e.line(c[0], blockTop, c[0], blockTop + ROW_H, RULE_D, 0.18); });
+
+    e.label('Serial no', dxs[0][0] + 2, r1, 7, true);
+    e.pill(serialOnly(val('refTherm')) || '\u2014', dxs[0][0] + 19, blockTop + 1.6, 34, 4.8, 7);
+    var dVal = e.label('Cal due', dxs[1][0] + 2, r1, 7, false);
+    e.t(monthYear(txtOf('refThermCalDue')) || '\u2014', dVal + 1, r1, 8.5, 'bold');
     var drtBadge = ascii(txtOf('refThermCalDue'));
     if (/valid/i.test(drtBadge)) {
-      e.badge(drtBadge.replace(/^[^A-Za-z]*/, ''), MX + 140, y, IN - 142, 4.6);
+      e.badge(drtBadge.replace(/^[^A-Za-z]*/, ''), dxs[2][0] + 2, blockTop + 1.8, dxs[2][1] - 4, 4.4);
     }
-    y += 8;
 
-    // ---------------- room temperature ----------------
-    var LAB_W = 32, RT_H = 8;
-    e.box(MX, y, IN, RT_H, null, RULE_D, 0.25);
-    e.line(MX + LAB_W, y, MX + LAB_W, y + RT_H, RULE_D, 0.25);
-    e.t('Room Temperature (RT)', MX + 2, y + 5.2, 6.8, 'bold');
-
+    // --- row 2: room temperature ---
+    var rtTop = blockTop + ROW_H, r2 = rtTop + 5.2;
+    e.t('Room Temperature (RT)', MX + 2, r2, 6.8, 'bold');
     var rtCols = [56, 29, 20, 20, IN - LAB_W - 125];
     var xs = [], acc = MX + LAB_W;
     rtCols.forEach(function (w) { xs.push([acc, w]); acc += w; });
-    xs.slice(1).forEach(function (c) { e.line(c[0], y, c[0], y + RT_H, RULE_D, 0.18); });
+    xs.slice(1).forEach(function (c) { e.line(c[0], rtTop, c[0], rtTop + ROW_H, RULE_D, 0.18); });
 
-    var rtMid = y + 5.2;
-    e.label('RT Ref', xs[0][0] + 2, rtMid, 7, true);
-    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, y + 1.6, 19, 4.8, 6.8);
+    e.label('RT Ref', xs[0][0] + 2, r2, 7, true);
+    e.pill(serialOnly(val('rtRef')) || '\u2014', xs[0][0] + 13, rtTop + 1.6, 19, 4.8, 6.8);
     var rtv = ascii(txtOf('rtRefValidity'));
-    if (rtv) e.badge(rtv, xs[0][0] + 34, y + 1.8, xs[0][1] - 36, 4.4);
+    if (rtv) e.badge(rtv, xs[0][0] + 34, rtTop + 1.8, xs[0][1] - 36, 4.4);
 
     [[xs[1], 'Cal due:', monthYear(txtOf('rtRefValidity')), false],
      [xs[2], 'Max', val('rtMax'), true],
      [xs[3], 'Min', val('rtMin'), true],
      [xs[4], 'Average:', txtOf('rtAvg'), false]
     ].forEach(function (col) {
-      var vxx = e.label(col[1], col[0][0] + 2, rtMid, 7, col[3]);
-      e.t(col[2] || '\u2014', vxx + 1, rtMid, 8.5, 'bold');
+      var vxx = e.label(col[1], col[0][0] + 2, r2, 7, col[3]);
+      e.t(col[2] || '\u2014', vxx + 1, r2, 8.5, 'bold');
     });
-    y += RT_H + 2.5;
+    y = blockTop + blockH + 2.5;
 
     // ---------------- measurement sections ----------------
     var LBL_W = 62, TICK_W = 9;
