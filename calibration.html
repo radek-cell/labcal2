@@ -248,6 +248,7 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 .jdev-tag.started{border:1px solid var(--amber);color:var(--amber)}
 .jdev-tag.added{border:1px solid var(--cyan);color:var(--cyan)}
 .jdev-tag.notreq{border:1px solid #c0392b;color:#c0392b}
+.jdev-tag.edited{border:1px solid #7a5cc4;color:#5f45a3}
 .jdev.notreq{opacity:.55}
 .jdev.notreq .jdev-model{text-decoration:line-through}
 .jbtn.mini{padding:7px 10px;font-size:11.5px}
@@ -441,7 +442,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.40</span>
+    <span id="footYear">v1.41</span>
   </footer>
 
 </div>
@@ -613,7 +614,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.40 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.41 · ' + d.getFullYear();
 }
 
 
@@ -839,8 +840,12 @@ function renderJobPanel(){
           d.done && d.carriedOver ? '<span class="jdev-tag earlier">'+jesc(shortDay(d.doneAt))+'</span>' :
           (d.notRequired && !d.done ? '<span class="jdev-tag notreq">not required</span>' :
           (!d.done && LabCalJobsheet.isStarted(js.callNumber, d) ? '<span class="jdev-tag started">started</span>' : ''))
-        }${d.addedManually ? '<span class="jdev-tag added">added on site</span>' : ''}</div>
-        <div class="jdev-meta">${jesc(d.serial||'no serial')}${d.location?' · '+jesc(d.location):''}${d.done&&d.certRef?' · cert '+jesc(d.certRef):''}${d.done&&d.doneAt?' · '+jesc(shortDay(d.doneAt)):''}${d.notRequired&&!d.done&&d.notRequiredReason?' · '+jesc(d.notRequiredReason):''}</div>
+        }${d.addedManually ? '<span class="jdev-tag added">added on site</span>' : ''}${
+          d.edited ? `<span class="jdev-tag edited" title="${jesc((d.editedFields||[]).join(', '))}${d.editedAt?' · '+jesc(shortDay(d.editedAt)):''}">edited</span>` : ''
+        }</div>
+        <div class="jdev-meta">${jesc(d.serial||'no serial')}${d.location?' · '+jesc(d.location):''}${d.done&&d.certRef?' · cert '+jesc(d.certRef):''}${d.done&&d.doneAt?' · '+jesc(shortDay(d.doneAt)):''}${d.notRequired&&!d.done&&d.notRequiredReason?' · '+jesc(d.notRequiredReason):''}${
+          d.sheetSerial && d.sheetSerial !== d.serial ? ` · <span style="color:#5f45a3">jobsheet read ${jesc(d.sheetSerial)}</span>` : ''
+        }</div>
       </div>
       <div class="jdev-ctl">
         ${whyText?`<span class="why">${whyText}</span>`:''}

@@ -683,8 +683,21 @@
     var newSerial = patch.serial === undefined ? d.serial : String(patch.serial).trim();
     var changedSerial = serialKey(newSerial) !== serialKey(oldSerial);
 
+    var changed = [];
+    if (patch.model !== undefined && String(patch.model).trim() !== d.model) changed.push('model');
+    if (patch.location !== undefined && String(patch.location).trim() !== d.location) changed.push('location');
+    if (changedSerial) changed.push('serial');
+
     if (patch.model !== undefined) d.model = String(patch.model).trim();
     if (patch.location !== undefined) d.location = String(patch.location).trim();
+
+    if (changed.length) {
+      d.edited = true;
+      d.editedAt = new Date().toISOString();
+      d.editedFields = (d.editedFields || []).concat(changed).filter(function (v, i, a) {
+        return a.indexOf(v) === i;
+      });
+    }
     recordFix(js.callNumber, d.sheetSerial || oldSerial, {
       serial: newSerial, model: d.model, location: d.location
     });
@@ -963,6 +976,9 @@
       if (f.model) d.model = f.model;
       if (f.location) d.location = f.location;
       d.corrected = true;
+      d.edited = true;
+      d.editedAt = f.at || '';
+      d.editedFields = ['corrected on site'];
     });
 
     // Loading the same jobsheet again (day two of the same job) merges into
@@ -986,6 +1002,10 @@
         d.done = was.done; d.doneAt = was.doneAt; d.certRef = was.certRef;
         d.notRequired = was.notRequired; d.notRequiredReason = was.notRequiredReason;
         d.carriedOver = was.carriedOver;
+        d.edited = d.edited || was.edited;
+        d.editedAt = d.editedAt || was.editedAt;
+        d.editedFields = d.editedFields || was.editedFields;
+        d.sheetSerial = d.sheetSerial || was.sheetSerial;
         return d;
       });
       // units that were on the job but not on this sheet (added on site, or

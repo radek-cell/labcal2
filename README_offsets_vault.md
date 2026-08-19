@@ -1,7 +1,23 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.40)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.41)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.41 — an "edited" marker
+
+A unit you have corrected now carries a purple **edited** tag, and its line
+shows what the jobsheet originally said: *"jobsheet read 20800627_4000029"*.
+Holding the tag shows which fields changed and when.
+
+It is stored on the unit and on the job, so it survives:
+
+- opening a worksheet and coming back to the list
+- switching to another job and back
+- re-uploading the same (still wrong) jobsheet the next day
+
+The job summary PDF already showed the original serial beneath a corrected one,
+so a customer or an assessor can see the discrepancy rather than having it
+quietly overwritten.
 
 ## v1.40 — the stale-script fault (important)
 
@@ -824,13 +840,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v35**; same-origin files now network-first |
+| `sw.js` | Cache bumped to **v36**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v35, then hit **Refresh offline copy**.
+picks up v36, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
