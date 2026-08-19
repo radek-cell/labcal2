@@ -67,10 +67,16 @@
   // 'text'  — drawn as real text with jsPDF. Far smaller and selectable, but
   //           only implemented for the 19/24 worksheet so far; the others
   //           ignore this and always use the image path.
+  // Text is the default. It is a fifth of the size, selectable and searchable,
+  // and prints sharper. Image remains available for Cloud Temp (which has no
+  // text generator yet) and as a fallback if a text certificate ever fails.
   function style() {
     var s = store();
-    if (!s) return 'image';
-    try { return s.getItem(KEY_STYLE) === 'text' ? 'text' : 'image'; } catch (e) { return 'image'; }
+    if (!s) return 'text';
+    try {
+      var v = s.getItem(KEY_STYLE);
+      return v === 'image' ? 'image' : 'text';
+    } catch (e) { return 'text'; }
   }
 
   function setStyle(v) {

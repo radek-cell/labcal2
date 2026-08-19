@@ -1,7 +1,43 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.43)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.44)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.44 — text by default, and the certificates panel sorted
+
+**Text certificates are now the default** on a fresh device. Image is still
+selectable, and Cloud Temp continues to produce image certificates because it
+has no text version yet.
+
+**The job bar had leaked into the certificates panel.** That is why *+ New job*
+and *Load jobsheet* appeared down there — an earlier edit matched the header
+markup of both panels and inserted the bar into each. Removed; the certificates
+section now has only its own controls.
+
+**A day picker that is always present.** Previously the day selector only
+appeared once more than one day had certificates, so on a quiet day there was no
+way to look at anything. Now there is a date field, a **Today** button when you
+have navigated away, and shortcut buttons for the most recent days with counts.
+A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
+0 certificates"*.
+
+**Clearer header.** *"Certificates — today"* with *"3 certificates across 2 jobs
+· 412 KB"* beneath, then the day bar, then one group per job with its own
+**Merge job & share**.
+
+## v1.44 — text certificates by default
+
+**Text is now the default certificate style** on a device that has not chosen
+otherwise. It applies to Barkey, Standard Medical, Standard Non-Medical and the
+19/24 Range; Cloud Temp still produces the image version on its own, so nothing
+breaks there. Image remains selectable on the home page if a particular customer
+ever wants it.
+
+**Certificate panel.** The day now reads as an explicit count — *"Certificates —
+today · 0"* — rather than "none yet today", so a day with nothing on it is a
+state you can see. The date picker and Today button were already there and are
+unchanged. The panel carries no job controls: new job and load jobsheet belong
+to the worklist above and appear only there.
 
 ## v1.43 — edits carry both ways, and a simpler worksheet toolbar
 
@@ -881,13 +917,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v38**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v39**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v38, then hit **Refresh offline copy**.
+picks up v39, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

@@ -475,7 +475,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.43</span>
+    <span id="footYear">v1.44</span>
   </footer>
 
 </div>
@@ -581,7 +581,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.43 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.44 · ' + d.getFullYear();
 }
 
 // ---- Fullscreen toggle (Android/desktop browsers; on iOS, use
@@ -1105,7 +1105,7 @@ function renderPdfQuality(){
     return `<option value="${p.id}"${p.id===cur.id?' selected':''}>${p.name}</option>`;
   }).join('');
   const note = isText
-    ? 'Drawn as real text — 13–19 KB, selectable and searchable. <b>Barkey, Standard Medical, Standard Non-Medical and 19/24 Range</b>; Cloud Temp still uses the image version.'
+    ? 'Real text: 13–19 KB, selectable, searchable and sharp at any zoom. Used by <b>Barkey, Standard Medical, Standard Non-Medical and 19/24 Range</b>. Cloud Temp has no text version yet and still produces the image one.'
     : `${cur.note} Each certificate's actual size is shown in the day panel on the calibration page.`;
   setHtml(el, `
     <div>
@@ -1114,8 +1114,8 @@ function renderPdfQuality(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select id="pdfStyleSel">
-        <option value="image"${isText?'':' selected'}>Image (all worksheets)</option>
-        <option value="text"${isText?' selected':''}>Text (all except Cloud Temp)</option>
+        <option value="text"${isText?' selected':''}>Text — recommended</option>
+        <option value="image"${isText?'':' selected'}>Image — the older style</option>
       </select>
       ${isText ? '' : `<select id="pdfQualitySel">${opts}</select>`}
     </div>`);
@@ -1137,7 +1137,7 @@ function renderPdfQuality(){
 // which is right — but it also means a file that never got uploaded fails
 // silently. Say so plainly instead.
 // ---------------------------------------------------------------------
-const APP_VERSION = 'v1.43';
+const APP_VERSION = 'v1.44';
 function runSelfCheck(){
   const el = document.getElementById('selfCheck');
   if(!el) return;

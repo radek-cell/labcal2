@@ -195,6 +195,18 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 .cbtn.solid:hover{background:#0c7a70;color:#fff}
 .cbtn.danger:hover{color:#c0392b;border-color:#e0a49c}
 .cbtn:disabled{opacity:.45;cursor:not-allowed}
+.certbar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:10px 0 2px;padding-top:10px;border-top:1px solid var(--border-soft);
+}
+.certbar .spacer{flex:1}
+.certbar .daypick{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--muted-dim)}
+.certbar .daypick input{
+  font-family:var(--sans);font-size:12.5px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:6px;background:#fff;color:var(--ink);
+}
+.certbar .certcount{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.cbtn.mini{padding:6px 10px;font-size:11.5px}
 .daysel{
   font-family:var(--mono);font-size:11.5px;padding:7px 9px;border:1px solid var(--border);
   border-radius:6px;background:#fff;color:var(--ink);
@@ -442,7 +454,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.43</span>
+    <span id="footYear">v1.44</span>
   </footer>
 
 </div>
@@ -614,7 +626,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.43 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.44 · ' + d.getFullYear();
 }
 
 
@@ -1144,21 +1156,39 @@ async function renderCertPanel(){
     return;
   }
 
-  const daySelect = allDays.length > 1
-    ? `<select class="daysel" id="certDaySel">${allDays.map(d=>`<option value="${d.day}"${d.day===day?' selected':''}>${jesc(fmtDay(d.day))} — ${d.count}</option>`).join('')}</select>`
-    : '';
+  // A date picker that is always there, so any day can be looked at — including
+  // one with nothing on it, which should read as a clear zero rather than the
+  // control vanishing.
+  const dayCounts = {};
+  allDays.forEach(d=>{ dayCounts[d.day] = d.count; });
+  const jobsToday = await LabCalCerts.jobsOnDay(day);
+  const totalToday = list.length;
+  const quick = allDays.slice(0, 4).map(d=>
+    `<button class="cbtn mini${d.day===day?' solid':''}" type="button" data-day="${d.day}">${jesc(fmtDay(d.day))} · ${d.count}</button>`
+  ).join('');
+  const dayBar = `
+    <div class="certbar">
+      <label class="daypick">
+        <span>Day</span>
+        <input type="date" id="certDayInput" value="${day}" max="${LabCalCerts.todayIso()}">
+      </label>
+      ${day !== LabCalCerts.todayIso() ? '<button class="cbtn mini" type="button" id="certTodayBtn">Today</button>' : ''}
+      <span class="certcount">${totalToday} certificate${totalToday===1?'':'s'}${jobsToday.length?` · ${jobsToday.length} job${jobsToday.length===1?'':'s'}`:''}</span>
+      <span class="spacer"></span>
+      ${quick}
+    </div>`;
 
   if(!list.length){
     setHtml(certPanel, `
       <div class="job-head">
         <div>
-          <p class="job-title">No certificates ${day===LabCalCerts.todayIso()?'yet today':'on '+jesc(fmtDay(day))}</p>
-          <div class="cert-sub">Every PDF you generate appears here, ready to re-open, share again, or merge into one file.</div>
+          <p class="job-title">Certificates — ${day===LabCalCerts.todayIso()?'today':jesc(fmtDay(day))} · 0</p>
+          <div class="cert-sub">Every PDF you generate appears here, ready to re-open, share again, or merge into one file per job.</div>
         </div>
-        <div class="job-actions">${daySelect}</div>
-      </div>`);
+      </div>
+      ${dayBar}`);
     certPanel.className = 'certs empty';
-    bindDaySelect();
+    bindCertBar();
     return;
   }
 
@@ -1199,18 +1229,16 @@ async function renderCertPanel(){
   }).join('');
 
   const html = `
-    ${jobBarHtml()}
-    ${toastHtml()}
     <div class="job-head">
       <div>
-        <p class="job-title">Certificates ${day===LabCalCerts.todayIso()?'today':'on '+jesc(fmtDay(day))} — ${list.length} across ${jobs.length} job${jobs.length===1?'':'s'}</p>
-        <div class="cert-sub">${LabCalCerts.formatSize(totalBytes)} in total</div>
+        <p class="job-title">Certificates — ${day===LabCalCerts.todayIso()?'today':jesc(fmtDay(day))} · ${list.length}</p>
+        <div class="cert-sub">${list.length} certificate${list.length===1?'':'s'} across ${jobs.length} job${jobs.length===1?'':'s'} · ${LabCalCerts.formatSize(totalBytes)}</div>
       </div>
       <div class="job-actions">
-        ${daySelect}
         <button class="cbtn danger" type="button" id="certClearBtn">Clear day</button>
       </div>
     </div>
+    ${dayBar}
     ${groups}
     <div class="cert-note"><b>Keep your own copy.</b> This list is a convenience buffer held by the browser, not an archive — iPadOS clears it after about a week away from the site. Save each certificate properly the same day.</div>`;
 
@@ -1218,13 +1246,22 @@ async function renderCertPanel(){
   certPanel.className = 'certs';
 }
 
-function bindDaySelect(){
-  const sel = document.getElementById('certDaySel');
-  if(sel) sel.addEventListener('change', ()=>{ certDay = sel.value; renderCertPanel(); });
+function bindCertBar(){
+  const input = document.getElementById('certDayInput');
+  if(input) input.addEventListener('change', ()=>{
+    certDay = input.value || LabCalCerts.todayIso();
+    renderCertPanel();
+  });
+  const today = document.getElementById('certTodayBtn');
+  if(today) today.addEventListener('click', ()=>{ certDay = null; renderCertPanel(); });
+  certPanel.querySelectorAll('[data-day]').forEach(b=>b.addEventListener('click', ()=>{
+    certDay = b.getAttribute('data-day');
+    renderCertPanel();
+  }));
 }
 
 function bindCertActions(){
-  bindDaySelect();
+  bindCertBar();
 
   certPanel.querySelectorAll('[data-reopen]').forEach(b=>b.addEventListener('click', async ()=>{
     const rec = await LabCalCerts.get(Number(b.getAttribute('data-reopen')));
