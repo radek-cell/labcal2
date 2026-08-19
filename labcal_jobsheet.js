@@ -24,6 +24,7 @@
   var KEY_ROUTES  = 'labcal.jobsheet.routes';
   var KEY_PROGRESS = 'labcal.jobsheet.progress';
   var KEY_EXTRA = 'labcal.jobsheet.extra';   // units added on site, per job
+  var KEY_LINK  = 'labcal.jobsheet.link';    // which unit the open worksheet belongs to
   var KEY_FIXES = 'labcal.jobsheet.fixes';   // corrections to a jobsheet's own data
   var KEY_JOBS = 'labcal.jobsheet.jobs';     // every job, keyed by reference
   var KEY_ACTIVE = 'labcal.jobsheet.active'; // which job is open
@@ -1108,6 +1109,7 @@
       }
     };
     writeJson(KEY_HANDOFF, payload);
+    setLink({ jobRef: js.callNumber, serial: d.serial });
     if (d.sheet) learnRoute(d.model, d.sheet, d.suggested);
     return payload;
   }
@@ -1122,7 +1124,37 @@
       jobsheet: payload.jobsheet || {}
     };
     writeJson(KEY_HANDOFF, p);
+    setLink({ jobRef: (payload.jobsheet || {}).callNumber || '', serial: (payload.device || {}).serial || '' });
     return p;
+  }
+
+  // ---- the link between a worksheet and its unit --------------------------
+  // A worksheet needs to know which unit on which job it is filling in, so a
+  // serial corrected on the worksheet can be pushed back to the list. The
+  // link is stored, not held in memory, so it survives the page reload that
+  // happens when navigating between the two.
+  function setLink(l) { writeJson(KEY_LINK, l || null); }
+  function link() { return readJson(KEY_LINK, null); }
+
+  // Push what the worksheet now says back onto its unit. Returns the updated
+  // device, or null if the worksheet is not linked to one.
+  function syncFromWorksheet(patch) {
+    var l = link();
+    if (!l || !l.serial) return null;
+    var js = current();
+    if (!js || jobKey(js.callNumber) !== jobKey(l.jobRef)) {
+      var all = jobsStore();
+      if (all[jobKey(l.jobRef)]) { setActiveJob(jobKey(l.jobRef)); js = current(); }
+    }
+    if (!js) return null;
+    var idx = -1;
+    js.devices.forEach(function (d, i) {
+      if (idx === -1 && serialKey(d.serial) === serialKey(l.serial)) idx = i;
+    });
+    if (idx === -1) return null;
+    var d = editDevice(idx, patch);
+    if (d) setLink({ jobRef: l.jobRef, serial: d.serial });
+    return d;
   }
 
   // Read AND clear — a handoff is consumed exactly once.
@@ -1210,6 +1242,9 @@
     // handoff
     handoff: handoff,
     handoffUnit: handoffUnit,
+    setLink: setLink,
+    link: link,
+    syncFromWorksheet: syncFromWorksheet,
     takeHandoff: takeHandoff,
     onChange: onChange,
     ddmmyyyyToIso: ddmmyyyyToIso

@@ -82,6 +82,7 @@
 </head>
 <body>
 <div class="toolbar">
+  <button class="btn light" id="syncJobBtn" onclick="saveToJobList()" title="Push the model, serial and location back to the job list">Save to job list</button>
   <button class="btn" id="generateBtn" onclick="generatePDF()">Generate PDF</button>
   <button class="btn light" id="generateExcelBtn" onclick="generateExcel()">Generate Excel</button>
   <button class="btn light" onclick="document.getElementById('excelImportFile').click()">Import Excel</button>
@@ -1832,6 +1833,36 @@ function showRestoredBanner(rec){
   el.textContent=`Reopened ${rec.serial||''} — readings restored from ${when}. Generating again produces an amended certificate; the earlier one is kept and marked superseded.`.trim();
   el.style.color='#7a4c06';
 }
+// ---------------------------------------------------------------------
+// Two-way link with the job list. The worksheet knows which unit it was
+// opened for, so a serial corrected here goes back to the list rather than
+// leaving the two disagreeing.
+// ---------------------------------------------------------------------
+function jobLinkFields(){
+  const v=id=>{ const el=document.getElementById(id); return el?String(el.value||'').trim():''; };
+  return { model:v('model'), serial:v('serial'), location:v('department') };
+}
+function saveToJobList(silent){
+  if(!window.LabCalJobsheet || typeof LabCalJobsheet.syncFromWorksheet !== 'function'){
+    if(!silent) alert('labcal_jobsheet.js is out of date on this device.\n\nOpen the LabCal home page while online, tap "Refresh offline copy", then close every tab of this site and reopen.');
+    return null;
+  }
+  const l = LabCalJobsheet.link && LabCalJobsheet.link();
+  if(!l || !l.serial){
+    if(!silent) alert('This worksheet was not opened from a job list, so there is nothing to update.\n\nOpen the unit from the calibration page to link them.');
+    return null;
+  }
+  const d = LabCalJobsheet.syncFromWorksheet(jobLinkFields());
+  if(!silent){
+    const btn=document.getElementById('syncJobBtn');
+    if(btn){
+      const was=btn.textContent;
+      btn.textContent = d ? 'Saved to job list ✓' : 'Unit not found on the list';
+      setTimeout(()=>{ btn.textContent=was; }, 2200);
+    }
+  }
+  return d;
+}
 function markJobsheetDone(){
   if(!window.LabCalJobsheet) return;
   const serialEl=document.getElementById('serial');
@@ -1853,6 +1884,7 @@ async function generateVectorPDF(){
     else { downloadBlob(blob,filename); }
     saveUnitSnapshot();
     fileCertificateForToday(blob, filename);
+    saveToJobList(true);
     markJobsheetDone();
     return true;
   }catch(err){
@@ -1908,6 +1940,7 @@ async function generatePDF(){
     else { downloadBlob(blob,filename); }
     saveUnitSnapshot();
     fileCertificateForToday(blob, filename);
+    saveToJobList(true);
     markJobsheetDone();
   }catch(err){
     alert('PDF generation failed: '+(err && err.message ? err.message : err));

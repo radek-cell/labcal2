@@ -1,7 +1,29 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.41)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.42)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.42 — worksheet and job list kept in sync
+
+Opening a unit from the job list now **links** the worksheet to that unit, and
+the link is stored rather than held in memory, so it survives moving between
+the two pages.
+
+**Save to job list** — a new button beside *Generate PDF* on every worksheet.
+Correct the serial, model or location on the worksheet, press it, and the job
+list is updated: the row shows the corrected details, carries the **edited**
+tag, and keeps *"jobsheet read …"* underneath. It also runs automatically when a
+certificate is generated, so the certificate can never be filed against a serial
+the list does not have.
+
+Both directions were tested:
+
+- correct on the **worksheet** → back to the list, the row is updated and tagged
+- correct on the **list** → open the unit, the worksheet opens with the
+  corrected serial and location, and the certificate ties to it
+
+If a worksheet is opened directly rather than from a job, the button says so
+instead of failing quietly.
 
 ## v1.41 — an "edited" marker
 
@@ -840,13 +862,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v36**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v37**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v36, then hit **Refresh offline copy**.
+picks up v37, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
