@@ -1,7 +1,26 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.42)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.43)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.43 — edits carry both ways, and a simpler worksheet toolbar
+
+**The remaining sync fault.** Correcting a serial on the job list did not reach a
+worksheet that had **already been started**. The cause: the worksheet restores
+its saved readings after filling in the header, and that snapshot was saved with
+whatever serial the unit had at the time — so an old snapshot quietly reinstated
+the old serial.
+
+The job list is now treated as the source of truth for identity: after the
+readings are restored, the model, serial, location, site and job reference are
+re-applied from the list over the top. Tested on the exact sequence — start a
+calibration, correct the serial on the main page, reopen the unit: the corrected
+serial appears **and the readings are still there**.
+
+**Simpler toolbar.** Worksheets now show **Save to job list** and **Generate
+PDF**, with everything else — Excel export and import, print, start new
+calibration, load offsets, load jobsheet, load saved — folded behind **More…**.
+Nothing is removed; the fold just remembers whether you left it open.
 
 ## v1.42 — worksheet and job list kept in sync
 
@@ -862,13 +881,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v37**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v38**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v37, then hit **Refresh offline copy**.
+picks up v38, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

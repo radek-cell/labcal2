@@ -84,18 +84,22 @@
 <div class="toolbar">
   <button class="btn light" id="syncJobBtn" onclick="saveToJobList()" title="Push the model, serial and location back to the job list">Save to job list</button>
   <button class="btn" id="generateBtn" onclick="generatePDF()">Generate PDF</button>
-  <button class="btn light" id="generateExcelBtn" onclick="generateExcel()">Generate Excel</button>
-  <button class="btn light" onclick="document.getElementById('excelImportFile').click()">Import Excel</button>
-  <input id="excelImportFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="importExcelFile(event)">
-  <button class="btn light" onclick="window.print()">Print</button>
-  <button class="btn light" onclick="startNewCalibration()">Start New Calibration</button>
-  <button class="btn light" onclick="document.getElementById('offsetFile').click()">Load offsets</button>
-  <input id="offsetFile" type="file" accept="application/json,.json" style="display:none" onchange="loadOffsetsFile(event)">
-  <button class="btn light" onclick="document.getElementById('jobsheetFile').click()">Load Jobsheet PDF</button>
-  <input id="jobsheetFile" type="file" accept="application/pdf,.pdf" style="display:none" onchange="loadJobsheetPDF(event)">
-  <button class="btn light" onclick="loadLocal()">Load saved</button>
+  <button class="btn light" id="moreToolsBtn" type="button" onclick="toggleMoreTools()">More…</button>
+  <span class="moreTools" id="moreTools" style="display:none">
+    <button class="btn light" id="generateExcelBtn" onclick="generateExcel()">Generate Excel</button>
+    <button class="btn light" onclick="document.getElementById('excelImportFile').click()">Import Excel</button>
+    <input id="excelImportFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="importExcelFile(event)">
+    <button class="btn light" onclick="window.print()">Print</button>
+    <button class="btn light" onclick="startNewCalibration()">Start New Calibration</button>
+    <button class="btn light" onclick="document.getElementById('offsetFile').click()">Load offsets</button>
+    <input id="offsetFile" type="file" accept="application/json,.json" style="display:none" onchange="loadOffsetsFile(event)">
+    <button class="btn light" onclick="document.getElementById('jobsheetFile').click()">Load Jobsheet PDF</button>
+    <input id="jobsheetFile" type="file" accept="application/pdf,.pdf" style="display:none" onchange="loadJobsheetPDF(event)">
+    <button class="btn light" onclick="loadLocal()">Load saved</button>
+  </span>
   <span class="hintText" id="offsetStatus">Offline HTML prototype · tolerance depends on device type (Fridge ±0.5, Freezer ±3.0, Incubator ±0.5 °C)</span>
   <span class="hintText" id="pdfNameHint"></span>
+
 </div>
 <div class="offsetWarning" id="offsetWarning" style="display:none"></div>
 <div id="jobsheetModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
@@ -389,6 +393,40 @@ function offsetsFingerprint(raw){
 // Device handed over from the jobsheet worklist on the calibration page.
 // Consumed once, and only ever into empty fields — reopening a worksheet
 // must never quietly overwrite readings already taken.
+// The job list is the source of truth for which unit this is.
+// The everyday toolbar is Generate PDF and Save to job list. Excel, print,
+// offsets and the rest still exist — they are just folded behind More…, so
+// the top of the sheet is not a wall of buttons.
+function toggleMoreTools(){
+  const box=document.getElementById('moreTools');
+  const btn=document.getElementById('moreToolsBtn');
+  if(!box) return;
+  const open = box.style.display === 'none';
+  box.style.display = open ? 'inline' : 'none';
+  if(btn) btn.textContent = open ? 'Fewer' : 'More…';
+  try{ localStorage.setItem('labcal.ui.moreTools', open ? '1' : '0'); }catch(e){}
+}
+(function restoreMoreTools(){
+  try{
+    if(localStorage.getItem('labcal.ui.moreTools') !== '1') return;
+    // These scripts run at the end of the body, so DOMContentLoaded may
+    // already have fired — waiting for it would silently do nothing.
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', toggleMoreTools);
+    else toggleMoreTools();
+  }catch(e){}
+})();
+
+function applyUnitIdentity(d, j){
+  const set=(id,val)=>{
+    const el=document.getElementById(id);
+    if(el && val) el.value=val;
+  };
+  set('model', d.model||d.equipment||'');
+  set('serial', d.serial||'');
+  set('department', d.location||j.department||'');
+  set('site', j.customer||'');
+  set('jobRef', j.callNumber||'');
+}
 function applyJobsheetHandoff(){
   if(!window.LabCalJobsheet) return false;
   const p=LabCalJobsheet.takeHandoff('snmd');
@@ -406,7 +444,15 @@ function applyJobsheetHandoff(){
   fill('jobRef', j.callNumber||'');
   // Reopening a unit that was worked before: put its readings back.
   const restored=restoreUnitSnapshot(j.callNumber||'', d.serial||'');
-  if(restored){ showRestoredBanner(restored); return true; }
+  if(restored){
+    // The snapshot was saved with whatever serial the unit had at the time.
+    // If it has since been corrected on the job list, the list is right — so
+    // re-apply the identity over the restored readings rather than letting an
+    // old snapshot quietly reinstate the old serial.
+    applyUnitIdentity(d, j);
+    showRestoredBanner(restored);
+    return true;
+  }
   const statusEl=document.getElementById('offsetStatus');
   if(statusEl){
     statusEl.textContent=`${statusEl.textContent} · From jobsheet ${j.callNumber||''}: ${d.model||d.equipment||''} ${d.serial||''}`.trim();

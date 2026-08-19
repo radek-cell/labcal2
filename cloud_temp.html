@@ -148,21 +148,25 @@
 <div class="toolbar">
   <button class="btn light" id="syncJobBtn" onclick="saveToJobList()" title="Push the model, serial and location back to the job list">Save to job list</button>
   <button class="btn" id="generateBtn" onclick="generatePDF()">Generate PDF</button>
-  <button class="btn light" id="generateExcelBtn" onclick="generateExcel()">Generate Excel</button>
-  <button class="btn light" onclick="window.print()">Print</button>
-  <button class="btn light" onclick="startNewCalibration()">Start New Calibration</button>
-  <button class="btn light" onclick="document.getElementById('offsetFile').click()">Load offsets</button>
-  <input id="offsetFile" type="file" accept="application/json,.json" style="display:none" onchange="loadOffsetsFile(event)">
-  <button class="btn light" onclick="document.getElementById('jobsheetFile').click()">Load Jobsheet PDF</button>
-  <input id="jobsheetFile" type="file" accept="application/pdf,.pdf" style="display:none" onchange="loadJobsheetPDF(event)">
-  <button class="btn light" onclick="loadLocal()">Load saved</button>
-  <button class="btn light" onclick="saveBackupToFile()" title="Downloads a JSON file with the form, points and probe offsets — keep it somewhere safe (email to yourself, Drive, etc.)">💾 Save Backup</button>
-  <button class="btn light" onclick="document.getElementById('backupRestoreFile').click()" title="Restore a previously saved backup file">Restore Backup</button>
-  <input id="backupRestoreFile" type="file" accept="application/json,.json" style="display:none" onchange="restoreBackupFromFile(event)">
-  <button class="btn light" onclick="document.getElementById('excelImportFile').click()">Import Excel</button>
-  <input id="excelImportFile" type="file" accept=".xlsx" style="display:none" onchange="importExcelFile(event)">
+  <button class="btn light" id="moreToolsBtn" type="button" onclick="toggleMoreTools()">More…</button>
+  <span class="moreTools" id="moreTools" style="display:none">
+    <button class="btn light" id="generateExcelBtn" onclick="generateExcel()">Generate Excel</button>
+    <button class="btn light" onclick="window.print()">Print</button>
+    <button class="btn light" onclick="startNewCalibration()">Start New Calibration</button>
+    <button class="btn light" onclick="document.getElementById('offsetFile').click()">Load offsets</button>
+    <input id="offsetFile" type="file" accept="application/json,.json" style="display:none" onchange="loadOffsetsFile(event)">
+    <button class="btn light" onclick="document.getElementById('jobsheetFile').click()">Load Jobsheet PDF</button>
+    <input id="jobsheetFile" type="file" accept="application/pdf,.pdf" style="display:none" onchange="loadJobsheetPDF(event)">
+    <button class="btn light" onclick="loadLocal()">Load saved</button>
+    <button class="btn light" onclick="saveBackupToFile()" title="Downloads a JSON file with the form, points and probe offsets — keep it somewhere safe (email to yourself, Drive, etc.)">💾 Save Backup</button>
+    <button class="btn light" onclick="document.getElementById('backupRestoreFile').click()" title="Restore a previously saved backup file">Restore Backup</button>
+    <input id="backupRestoreFile" type="file" accept="application/json,.json" style="display:none" onchange="restoreBackupFromFile(event)">
+    <button class="btn light" onclick="document.getElementById('excelImportFile').click()">Import Excel</button>
+    <input id="excelImportFile" type="file" accept=".xlsx" style="display:none" onchange="importExcelFile(event)">
+  </span>
   <span class="hintText" id="offsetStatus">Offline HTML prototype · monitoring system calibration worksheet</span>
   <span class="hintText" id="lastSavedStamp" style="margin-left:auto;color:#0a7a0a"></span>
+
 </div>
 <div class="offsetWarning" id="offsetWarning" style="display:none"></div>
 <div class="offsetWarning" id="toleranceWarning" style="display:none"></div>
