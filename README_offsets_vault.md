@@ -1,7 +1,40 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.38)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.39)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.39 — correcting a jobsheet, and the end-of-day summary
+
+**Correcting a unit.** Every row has **Edit**, which opens an inline editor for
+model, serial and location. Jobsheets carry wrong serials often enough that this
+had to be fixable on site.
+
+Changing a serial is not just a label change, because progress is keyed by
+serial. The correction carries with it:
+
+- the unit's **certified / not required** state
+- any **part-finished worksheet** saved against the old serial
+- its entry if it was **added on site**
+- and the correction is **remembered against the job**, so re-uploading the same
+  (still wrong) jobsheet tomorrow keeps your version instead of re-adding the
+  unit under its typo
+
+The serial as printed on the jobsheet is kept alongside, and shown on the
+summary as *"jobsheet read SN-88211"*. If the unit was already certified, the
+message says plainly that the certificate already issued still carries the old
+serial — that is a document that has left the building, and the app should not
+pretend otherwise.
+
+**Job summary PDF.** A **Job summary PDF** button on the job panel produces an
+end-of-day sheet: every unit numbered, with model, serial, location, which
+worksheet it took, its status and its certificate number. Totals across the top
+— *14 units · 8 certified · 2 not required · 4 outstanding* — amber while
+anything is outstanding, green when the job is finished. Certified rows are
+green, not-required rows greyed, started rows amber. It paginates for long jobs
+and each page carries the job reference and site.
+
+About 6 KB, and it reads the job straight from the worklist, so it cannot
+disagree with the panel on screen.
 
 ## v1.38 — why those buttons did nothing, and proper multiple jobs
 
@@ -766,13 +799,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v33**, caches all shared modules |
+| `sw.js` | Cache bumped to **v34**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v33, then hit **Refresh offline copy**.
+picks up v34, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

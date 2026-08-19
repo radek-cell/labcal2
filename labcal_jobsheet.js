@@ -24,6 +24,7 @@
   var KEY_ROUTES  = 'labcal.jobsheet.routes';
   var KEY_PROGRESS = 'labcal.jobsheet.progress';
   var KEY_EXTRA = 'labcal.jobsheet.extra';   // units added on site, per job
+  var KEY_FIXES = 'labcal.jobsheet.fixes';   // corrections to a jobsheet's own data
   var KEY_JOBS = 'labcal.jobsheet.jobs';     // every job, keyed by reference
   var KEY_ACTIVE = 'labcal.jobsheet.active'; // which job is open
   var CHANGE_EVENT = 'labcal-jobsheet-changed';
@@ -651,6 +652,95 @@
     return entry;
   }
 
+  // Corrections are remembered against the job, so re-uploading the same
+  // (still wrong) jobsheet does not undo them or duplicate the unit.
+  function fixesStore() { return readJson(KEY_FIXES, {}) || {}; }
+  function fixesFor(jobRef) { return fixesStore()[String(jobRef || '')] || {}; }
+  function recordFix(jobRef, originalSerial, patch) {
+    var k = serialKey(originalSerial);
+    if (!k) return;
+    var all = fixesStore();
+    var job = all[String(jobRef || '')] || {};
+    var prev = job[k] || {};
+    job[k] = {
+      serial: patch.serial !== undefined ? patch.serial : prev.serial,
+      model: patch.model !== undefined ? patch.model : prev.model,
+      location: patch.location !== undefined ? patch.location : prev.location,
+      at: new Date().toISOString()
+    };
+    all[String(jobRef || '')] = job;
+    writeJson(KEY_FIXES, all);
+  }
+
+  // Jobsheets carry wrong serials often enough that they have to be
+  // correctable on site. Changing a serial has to carry the unit's progress
+  // with it, otherwise a corrected unit looks untouched again.
+  function editDevice(idx, patch) {
+    var js = current();
+    if (!js || !js.devices[idx]) return null;
+    var d = js.devices[idx];
+    var oldSerial = d.serial;
+    var newSerial = patch.serial === undefined ? d.serial : String(patch.serial).trim();
+    var changedSerial = serialKey(newSerial) !== serialKey(oldSerial);
+
+    if (patch.model !== undefined) d.model = String(patch.model).trim();
+    if (patch.location !== undefined) d.location = String(patch.location).trim();
+    recordFix(js.callNumber, d.sheetSerial || oldSerial, {
+      serial: newSerial, model: d.model, location: d.location
+    });
+    if (!d.sheetSerial) d.sheetSerial = oldSerial;   // as printed on the jobsheet
+
+    if (changedSerial) {
+      // move the progress record onto the corrected serial
+      var all = progressStore();
+      var job = all[String(js.callNumber || '')] || {};
+      var oldKey = serialKey(oldSerial), newKey = serialKey(newSerial);
+      if (oldKey && job[oldKey]) {
+        if (newKey) job[newKey] = job[oldKey];
+        delete job[oldKey];
+        all[String(js.callNumber || '')] = job;
+        writeJson(KEY_PROGRESS, all);
+      }
+      // and any part-finished worksheet saved against the old serial
+      if (global.LabCalUnits && d.sheet && oldKey && newKey) {
+        try {
+          var snap = global.LabCalUnits.load(d.sheet, js.callNumber, oldSerial);
+          if (snap && snap.state) {
+            global.LabCalUnits.save(d.sheet, js.callNumber, newSerial, snap.state, snap.meta || {});
+            global.LabCalUnits.remove(d.sheet, js.callNumber, oldSerial);
+          }
+        } catch (e) { /* the correction still stands */ }
+      }
+      // keep hand-added units findable under their new serial
+      if (d.addedManually) {
+        var ex = extraStore();
+        var list = (ex[String(js.callNumber || '')] || []).map(function (x) {
+          if (serialKey(x.serial) === oldKey) {
+            return { model: d.model, equipment: '', serial: newSerial, location: d.location,
+                     addedManually: true, addedAt: x.addedAt };
+          }
+          return x;
+        });
+        ex[String(js.callNumber || '')] = list;
+        writeJson(KEY_EXTRA, ex);
+      }
+      // a certificate already issued carries the old serial — record that
+      if (d.done && oldSerial) d.serialWas = oldSerial;
+      d.serial = newSerial;
+    }
+
+    // a corrected model may belong on a different worksheet
+    if (patch.model !== undefined && !d.done) {
+      var sug = suggestSheet(d);
+      if (sug.sheet && sug.why !== 'learned') { d.sheet = sug.sheet; d.sheetWhy = sug.why; }
+    }
+
+    writeJson(KEY_CURRENT, js);
+    saveActiveJob();
+    announce();
+    return d;
+  }
+
   function removeDevice(idx) {
     var js = current();
     if (!js || !js.devices[idx]) return false;
@@ -861,6 +951,20 @@
         };
       })
     };
+    // Apply any corrections made on site to the sheet's own data first, so a
+    // re-uploaded sheet with the same typo lines up with the unit already on
+    // the list rather than arriving as a duplicate.
+    var fixes = fixesFor(js.callNumber);
+    js.devices.forEach(function (d) {
+      var f = fixes[serialKey(d.serial)];
+      if (!f) return;
+      d.sheetSerial = d.serial;
+      if (f.serial) d.serial = f.serial;
+      if (f.model) d.model = f.model;
+      if (f.location) d.location = f.location;
+      d.corrected = true;
+    });
+
     // Loading the same jobsheet again (day two of the same job) merges into
     // the job already open rather than replacing it: units already on the
     // list keep their state, and anything new on the sheet is appended.
@@ -1066,6 +1170,8 @@
     recordProgress: recordProgress,
     setNotRequired: setNotRequired,
     addDevice: addDevice,
+    editDevice: editDevice,
+    fixesFor: fixesFor,
     removeDevice: removeDevice,
     extrasFor: extrasFor,
     clearProgress: clearProgress,

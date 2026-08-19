@@ -1518,6 +1518,122 @@
     return doc;
   }
 
+  // =====================================================================
+  // Job summary
+  // =====================================================================
+  // An end-of-day sheet for the whole job: every unit, where it was, which
+  // worksheet it took, what happened to it and its certificate number.
+  // Takes the job straight from the worklist, so it cannot disagree with the
+  // panel on screen.
+  function buildJobSummary(job, progress) {
+    var jsPDFctor = (global.jspdf && global.jspdf.jsPDF) || global.jsPDF;
+    if (!jsPDFctor) throw new Error('The PDF library did not load.');
+    if (!job || !job.devices || !job.devices.length) throw new Error('There are no units on this job yet.');
+    var doc = new jsPDFctor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    var e = new Engine(doc);
+
+    var SHEETS = (global.LabCalJobsheet && global.LabCalJobsheet.SHEETS) || {};
+    var COLS = [8, 28, 32, 38, 24, 28, 28];
+    var HEADS = ['#', 'Model', 'Serial number', 'Location', 'Worksheet', 'Status', 'Certificate'];
+    var ROW_H = 5.4;
+
+    function pageHead(first) {
+      var y = MT;
+      e.t(first ? 'Job Summary' : 'Job Summary (continued)', MX, y + 5, 14, 'bold');
+      e.t([job.callNumber || '(no job reference)', job.customer || ''].filter(Boolean).join('  \u00b7  '),
+          MX, y + 9.6, 8, 'bold', [40, 70, 120]);
+      e.t('LABCOLD', PW - MX, y + 6.5, 15, 'bold', INK, 'right');
+      var d = new Date();
+      var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      e.t(String(d.getDate()).padStart(2, '0') + '/' + MONTHS[d.getMonth()] + '/' + d.getFullYear(),
+          PW - MX, y + 11, 8, 'normal', NOTE, 'right');
+      y += 15;
+
+      if (first) {
+        var p = progress || {};
+        var bits = [
+          p.total + ' unit' + (p.total === 1 ? '' : 's'),
+          p.done + ' certified',
+          (p.notRequired || 0) + ' not required',
+          (p.outstanding || 0) + ' outstanding'
+        ];
+        e.box(MX, y, IN, 7, (p.outstanding ? [253, 243, 220] : GREEN_BG),
+              (p.outstanding ? [227, 196, 150] : GREEN_BD), 0.2);
+        e.t(bits.join('   \u00b7   '), MX + 3, y + 4.8, 8.5, 'bold',
+            p.outstanding ? [122, 76, 6] : GREEN_TX);
+        y += 9.5;
+      }
+
+      var hh = 5.6;
+      e.box(MX, y, IN, hh, HDR_BG, RULE_D, 0.25);
+      var x = MX;
+      HEADS.forEach(function (h, i) {
+        if (i) e.line(x, y, x, y + hh, RULE_D, 0.25);
+        e.t(h, x + 1.8, y + hh - 1.7, 7.2, 'bold');
+        x += COLS[i];
+      });
+      return y + hh;
+    }
+
+    function statusOf(d) {
+      if (d.done) return { text: 'Certified', tint: GREEN_BG, col: GREEN_TX };
+      if (d.notRequired) return { text: 'Not required', tint: GREY_BG, col: GREY_TXT };
+      if (global.LabCalJobsheet && global.LabCalJobsheet.isStarted &&
+          global.LabCalJobsheet.isStarted(job.callNumber, d)) {
+        return { text: 'Started', tint: [253, 243, 220], col: [122, 76, 6] };
+      }
+      return { text: 'To do', tint: null, col: INK };
+    }
+
+    var y = pageHead(true);
+    job.devices.forEach(function (d, i) {
+      if (y + ROW_H > PH - 18) { doc.addPage(); y = pageHead(false); }
+      var st = statusOf(d);
+      if (st.tint) e.box(MX, y, IN, ROW_H, st.tint, null);
+      var sheetName = d.sheet && SHEETS[d.sheet] ? SHEETS[d.sheet].name : '\u2014';
+      var serial = d.serial || '\u2014';
+      var cells = [String(i + 1), d.model || d.equipment || '\u2014', serial,
+                   d.location || '\u2014', sheetName, st.text, d.certRef || '\u2014'];
+      var x = MX;
+      cells.forEach(function (c, ci) {
+        if (ci) e.line(x, y, x, y + ROW_H, RULE, 0.18);
+        var size = 7.4;
+        while (size > 5 && e.w(c, size) > COLS[ci] - 3) size -= 0.2;
+        e.t(c, x + 1.8, y + ROW_H - 1.7, size,
+            (ci === 5 || ci === 6) ? 'bold' : 'normal',
+            (ci === 5) ? st.col : (d.notRequired && !d.done ? GREY_TXT : INK));
+        x += COLS[ci];
+      });
+      e.line(MX, y + ROW_H, MX + IN, y + ROW_H, RULE, 0.18);
+      e.line(MX, y, MX, y + ROW_H, RULE_D, 0.25);
+      e.line(MX + IN, y, MX + IN, y + ROW_H, RULE_D, 0.25);
+      // a corrected serial is worth showing alongside what the sheet said
+      if (d.sheetSerial && serialDiffers(d.sheetSerial, d.serial)) {
+        e.t('jobsheet read ' + d.sheetSerial, MX + COLS[0] + COLS[1] + 1.8, y + ROW_H + 2.6, 5.6, 'italic', NOTE);
+        y += 3;
+      }
+      y += ROW_H;
+    });
+
+    y += 4;
+    e.t('Not required units are shown for completeness and were not calibrated. '
+      + 'Certificates are issued separately per unit.', MX, y, 6.6, 'normal', NOTE);
+
+    var n = doc.getNumberOfPages();
+    for (var pg = 1; pg <= n; pg++) {
+      doc.setPage(pg);
+      e.t('Page ' + pg + ' of ' + n, PW - MX, PH - 8, 6.2, 'normal', NOTE, 'right');
+      e.t((job.callNumber || '') + (job.customer ? '  \u00b7  ' + job.customer : ''),
+          MX, PH - 8, 6.2, 'normal', NOTE);
+    }
+    return doc;
+  }
+
+  function serialDiffers(a, b) {
+    return String(a || '').replace(/[^a-z0-9]/gi, '').toUpperCase()
+        !== String(b || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+  }
+
   global.LabCalVectorPdf = {
     supports: function (sheet) {
       return sheet === 'ws19_24' || sheet === 'barkey' || sheet === 'snmd' || sheet === 'smd';
@@ -1525,6 +1641,8 @@
     buildSNMD: function () { return buildSNMD('snmd'); },
     blobSNMD: function () { return buildSNMD('snmd').output('blob'); },
     buildSMD: function () { return buildSNMD('smd'); },
+    buildJobSummary: buildJobSummary,
+    blobJobSummary: function (job, progress) { return buildJobSummary(job, progress).output('blob'); },
     blobSMD: function () { return buildSNMD('smd').output('blob'); },
     build19_24: build19_24,
     blob19_24: function () { return build19_24().output('blob'); },

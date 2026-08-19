@@ -14,6 +14,8 @@
 <script src="labcal_jobsheet.js"></script>
 <script src="labcal_save.js"></script>
 <script src="labcal_certs.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="labcal_vector_pdf.js"></script>
 <script src="labcal_units.js"></script>
 <style>
 :root{
@@ -434,7 +436,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.38</span>
+    <span id="footYear">v1.39</span>
   </footer>
 
 </div>
@@ -606,7 +608,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.38 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.39 · ' + d.getFullYear();
 }
 
 
@@ -683,7 +685,8 @@ function bindRoutingFooter(){
 }
 
 let jobFilter = '';
-let askingIdx = null;      // which row is showing its inline "not required?" ask
+let askingIdx = null;
+let editingIdx = null;    // which row is being corrected      // which row is showing its inline "not required?" ask
 let removingIdx = null;    // which row is showing its inline remove confirm
 let jobToast = null;       // { text, bad }
 
@@ -829,8 +832,18 @@ function renderJobPanel(){
           ? `<button class="jbtn ghost mini" type="button" data-restore="${i}">Put back</button>`
           : `<button class="jbtn" type="button" data-open="${i}" ${(!d.sheet||blocked)?'disabled':''}>${d.done?'Reopen':'Open'}</button>
              ${d.done ? '' : `<button class="jbtn cross mini" type="button" data-skip="${i}" title="Not required — not on site, or customer declined">✕</button>`}`}
+        <button class="jbtn ghost mini" type="button" data-edit="${i}" title="Correct the serial number or location">Edit</button>
         ${d.addedManually && !d.done ? `<button class="jbtn ghost mini" type="button" data-remove="${i}" title="Remove this added unit">Remove</button>` : ''}
       </div>
+      ${editingIdx === i ? `
+      <div class="inline-ask">
+        <span class="q">Correct this unit —</span>
+        <input id="editModel" placeholder="Model" value="${jesc(d.model||'')}" style="max-width:130px">
+        <input id="editSerial" placeholder="Serial number" value="${jesc(d.serial||'')}" style="max-width:160px">
+        <input id="editLoc" placeholder="Location" value="${jesc(d.location||'')}">
+        <button class="jbtn mini" type="button" data-edit-ok="${i}">Save</button>
+        <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
+      </div>` : ''}
       ${askingIdx === i ? `
       <div class="inline-ask">
         <span class="q">Not required —</span>
@@ -857,6 +870,7 @@ function renderJobPanel(){
         <div class="job-sub">${meta}</div>
       </div>
       <div class="job-actions">
+        <button class="jbtn" type="button" id="jobSummaryBtn">Job summary PDF</button>
         <button class="jbtn ghost" type="button" id="jobReplaceBtn">Replace</button>
         <button class="jbtn ghost" type="button" id="jobClearBtn">Clear</button>
       </div>
@@ -928,7 +942,7 @@ function renderJobPanel(){
       renderJobPanel();
     }));
     jobPanel.querySelectorAll('[data-ask-cancel]').forEach(btn=>btn.addEventListener('click',()=>{
-      askingIdx = null; removingIdx = null; renderJobPanel();
+      askingIdx = null; removingIdx = null; editingIdx = null; renderJobPanel();
     }));
     jobPanel.querySelectorAll('[data-restore]').forEach(btn=>btn.addEventListener('click',()=>{
       const d = LabCalJobsheet.current().devices[Number(btn.getAttribute('data-restore'))];
@@ -967,6 +981,32 @@ function renderJobPanel(){
     if(addCancel) addCancel.addEventListener('click', ()=>{
       document.getElementById('jobAddForm').classList.remove('open');
     });
+    // --- correcting a unit ---
+    jobPanel.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{
+      editingIdx = Number(btn.getAttribute('data-edit'));
+      askingIdx = null; removingIdx = null; jobToast = null;
+      renderJobPanel();
+      const f = document.getElementById('editSerial');
+      if(f) f.focus();
+    }));
+    jobPanel.querySelectorAll('[data-edit-ok]').forEach(btn=>btn.addEventListener('click',()=>{
+      const i = Number(btn.getAttribute('data-edit-ok'));
+      const before = LabCalJobsheet.current().devices[i];
+      const wasSerial = before.serial;
+      const d = LabCalJobsheet.editDevice(i, {
+        model: document.getElementById('editModel').value,
+        serial: document.getElementById('editSerial').value,
+        location: document.getElementById('editLoc').value
+      });
+      editingIdx = null;
+      jobToast = d
+        ? { text: (wasSerial && wasSerial !== d.serial)
+              ? `Serial corrected from ${wasSerial} to ${d.serial}${d.done?' — the certificate already issued still shows the old serial.':'.'}`
+              : `${d.serial || d.model} updated.` }
+        : { text: 'That unit could not be updated.', bad: true };
+      renderJobPanel();
+    }));
+
     jobPanel.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
       removingIdx = Number(btn.getAttribute('data-remove'));
       askingIdx = null; jobToast = null;
@@ -981,6 +1021,28 @@ function renderJobPanel(){
       jobToast = {text:`${label} removed from this job.`};
       renderJobPanel();
     }));
+
+    const sumBtn = document.getElementById('jobSummaryBtn');
+    if(sumBtn) sumBtn.addEventListener('click', async ()=>{
+      if(!window.LabCalVectorPdf || !window.jspdf){
+        jobToast = {text:'The PDF library did not load, so the summary cannot be produced.', bad:true};
+        renderJobPanel(); return;
+      }
+      const label = sumBtn.textContent;
+      sumBtn.disabled = true; sumBtn.textContent = 'Building…';
+      try{
+        const job = LabCalJobsheet.current();
+        const blob = LabCalVectorPdf.blobJobSummary(job, LabCalJobsheet.progress());
+        const name = `${(job.callNumber||'job').replace(/[^A-Za-z0-9_-]/g,'')}_summary_${LabCalCerts ? LabCalCerts.todayIso() : ''}.pdf`;
+        if(window.LabCalSave) await LabCalSave.deliver(blob, name);
+        jobToast = {text:`Summary ready — ${Math.round(blob.size/1024)} KB.`};
+      }catch(err){
+        jobToast = {text:'Could not build the summary: '+(err&&err.message?err.message:err), bad:true};
+      }finally{
+        sumBtn.disabled = false; sumBtn.textContent = label;
+        renderJobPanel();
+      }
+    });
 
     const cb = document.getElementById('jobClearBtn');
     if(cb) cb.addEventListener('click', ()=>{
