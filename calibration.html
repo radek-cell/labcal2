@@ -301,6 +301,11 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
   margin-top:8px;padding:8px 10px;background:#fdf3e3;border:1px solid var(--amber-dim);border-radius:6px;
 }
 .inline-ask .q{font-size:12px;color:#7a4c06;font-weight:600}
+.inline-ask.edit{flex-direction:column;align-items:stretch;gap:8px}
+.inline-ask .editrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline-ask .editrow .m{flex:0 1 150px}
+.inline-ask .editrow .s{flex:1 1 200px}
+.inline-ask .editrow .l{flex:1 1 240px}
 .inline-ask input{
   flex:1;min-width:140px;font-family:var(--sans);font-size:12.5px;
   padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:#fff;
@@ -436,7 +441,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.39</span>
+    <span id="footYear">v1.40</span>
   </footer>
 
 </div>
@@ -608,7 +613,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.39 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.40 · ' + d.getFullYear();
 }
 
 
@@ -689,6 +694,18 @@ let askingIdx = null;
 let editingIdx = null;    // which row is being corrected      // which row is showing its inline "not required?" ask
 let removingIdx = null;    // which row is showing its inline remove confirm
 let jobToast = null;       // { text, bad }
+
+// If a shared module is older than this page — which is what a stale cache
+// looks like — say so instead of throwing a developer error at the engineer.
+function moduleReady(obj, fn, file){
+  if(obj && typeof obj[fn] === 'function') return true;
+  jobToast = {
+    text: `${file} is out of date on this device, so that action is unavailable. Open the LabCal home page while online, tap "Refresh offline copy", then close every tab of this site and reopen.`,
+    bad: true
+  };
+  renderJobPanel();
+  return false;
+}
 
 function toastHtml(){
   if(!jobToast) return '';
@@ -836,13 +853,17 @@ function renderJobPanel(){
         ${d.addedManually && !d.done ? `<button class="jbtn ghost mini" type="button" data-remove="${i}" title="Remove this added unit">Remove</button>` : ''}
       </div>
       ${editingIdx === i ? `
-      <div class="inline-ask">
-        <span class="q">Correct this unit —</span>
-        <input id="editModel" placeholder="Model" value="${jesc(d.model||'')}" style="max-width:130px">
-        <input id="editSerial" placeholder="Serial number" value="${jesc(d.serial||'')}" style="max-width:160px">
-        <input id="editLoc" placeholder="Location" value="${jesc(d.location||'')}">
-        <button class="jbtn mini" type="button" data-edit-ok="${i}">Save</button>
-        <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
+      <div class="inline-ask edit">
+        <div class="editrow">
+          <span class="q">Correct this unit</span>
+          <input id="editModel" class="m" placeholder="Model" value="${jesc(d.model||'')}">
+          <input id="editSerial" class="s" placeholder="Serial number" value="${jesc(d.serial||'')}">
+        </div>
+        <div class="editrow">
+          <input id="editLoc" class="l" placeholder="Location / department" value="${jesc(d.location||'')}">
+          <button class="jbtn mini" type="button" data-edit-ok="${i}">Save</button>
+          <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
+        </div>
       </div>` : ''}
       ${askingIdx === i ? `
       <div class="inline-ask">
@@ -926,6 +947,7 @@ function renderJobPanel(){
 
     // --- not required / put back (inline, no native dialogs) ---
     jobPanel.querySelectorAll('[data-skip]').forEach(btn=>btn.addEventListener('click',()=>{
+      if(!moduleReady(window.LabCalJobsheet, 'setNotRequired', 'labcal_jobsheet.js')) return;
       askingIdx = Number(btn.getAttribute('data-skip'));
       removingIdx = null; jobToast = null;
       renderJobPanel();
@@ -962,6 +984,7 @@ function renderJobPanel(){
     if(addConfirm) addConfirm.addEventListener('click', ()=>{
       const form = document.getElementById('jobAddForm');
       if(form && !form.classList.contains('open')) return;
+      if(!moduleReady(window.LabCalJobsheet, 'addDevice', 'labcal_jobsheet.js')) return;
       const model = document.getElementById('addModel').value.trim();
       const serial = document.getElementById('addSerial').value.trim();
       const loc = document.getElementById('addLoc').value.trim();
@@ -990,6 +1013,7 @@ function renderJobPanel(){
       if(f) f.focus();
     }));
     jobPanel.querySelectorAll('[data-edit-ok]').forEach(btn=>btn.addEventListener('click',()=>{
+      if(!moduleReady(window.LabCalJobsheet, 'editDevice', 'labcal_jobsheet.js')) return;
       const i = Number(btn.getAttribute('data-edit-ok'));
       const before = LabCalJobsheet.current().devices[i];
       const wasSerial = before.serial;
@@ -1024,10 +1048,11 @@ function renderJobPanel(){
 
     const sumBtn = document.getElementById('jobSummaryBtn');
     if(sumBtn) sumBtn.addEventListener('click', async ()=>{
-      if(!window.LabCalVectorPdf || !window.jspdf){
+      if(!window.jspdf){
         jobToast = {text:'The PDF library did not load, so the summary cannot be produced.', bad:true};
         renderJobPanel(); return;
       }
+      if(!moduleReady(window.LabCalVectorPdf, 'blobJobSummary', 'labcal_vector_pdf.js')) return;
       const label = sumBtn.textContent;
       sumBtn.disabled = true; sumBtn.textContent = 'Building…';
       try{

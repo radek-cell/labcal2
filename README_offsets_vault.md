@@ -1,7 +1,32 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.39)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.40)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.40 — the stale-script fault (important)
+
+**"LabCalVectorPdf.blobJobSummary is not a function"**, and Save doing nothing,
+were the same fault: the service worker served **our own JavaScript cache-first**
+while serving the HTML network-first. So an up-to-date page could load against
+last week's copy of its own modules, and any newly added function simply did not
+exist. Nothing on screen suggested anything was wrong.
+
+Same-origin files are now fetched **network-first**, exactly like the pages, and
+fall back to cache only when there is no signal. The page and the scripts it
+depends on move together.
+
+This was not a one-off: every feature added since text certificates was exposed
+to it. If anything else has behaved oddly on the iPad while looking fine on the
+laptop, this was probably why.
+
+**Belt and braces:** each action now checks that the function it needs actually
+exists, and if not says so in plain language — *"labcal_jobsheet.js is out of
+date on this device… tap Refresh offline copy"* — rather than throwing a
+developer error or silently doing nothing.
+
+**Edit form relaid out.** Model and serial on the first line, location on a full
+width line beneath with Save and Cancel, instead of three fields squeezed onto
+one row. Saving returns to the normal view.
 
 ## v1.39 — correcting a jobsheet, and the end-of-day summary
 
@@ -799,13 +824,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v34**, caches all shared modules |
+| `sw.js` | Cache bumped to **v35**; same-origin files now network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v34, then hit **Refresh offline copy**.
+picks up v35, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

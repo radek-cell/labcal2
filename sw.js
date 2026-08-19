@@ -3,7 +3,7 @@
 // Bump CACHE_VERSION any time the HTML/JS files change and you want
 // devices that already installed the app to pick up the new version.
 // ---------------------------------------------------------------------
-const CACHE_VERSION  = 'v34';
+const CACHE_VERSION  = 'v35';
 const STATIC_CACHE   = `labcal-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE  = `labcal-runtime-${CACHE_VERSION}`;
 
@@ -205,16 +205,42 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Everything else (CDN libraries, fonts, icons, etc.): cache-first,
-  // then network — and remember whatever we fetch for next time.
-  // caches.match() searches every cache, so it finds both the app shell
-  // and anything picked up at runtime.
+  const sameOrigin = new URL(req.url).origin === self.location.origin;
+
+  // OUR OWN files (labcal_*.js and anything else on this site): network-first,
+  // exactly like the HTML pages.
+  //
+  // These used to be cache-first, which caused a nasty class of fault: an
+  // updated page would load against a stale copy of its own JavaScript, so a
+  // newly added function simply would not exist. It showed up as
+  // "LabCalVectorPdf.blobJobSummary is not a function" and as buttons that
+  // did nothing, on a device that looked fully up to date. The page and the
+  // scripts it depends on must move together.
+  if (sameOrigin) {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(req, { cache: 'no-cache' });
+        if (fresh && fresh.ok) {
+          const cache = await caches.open(STATIC_CACHE);
+          cache.put(req, fresh.clone());
+        }
+        return fresh;
+      } catch (e) {
+        const cached = await caches.match(req, { ignoreSearch: true });
+        if (cached) return cached;
+        throw e;
+      }
+    })());
+    return;
+  }
+
+  // Third-party libraries and fonts: cache-first, since those URLs are
+  // versioned and never change under us.
   event.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) return cached;
     try {
-      const sameOrigin = new URL(req.url).origin === self.location.origin;
-      const fresh = await fetch(req, sameOrigin ? {} : { mode: 'no-cors' });
+      const fresh = await fetch(req, { mode: 'no-cors' });
       const cache = await caches.open(RUNTIME_CACHE);
       cache.put(req, fresh.clone());
       return fresh;
