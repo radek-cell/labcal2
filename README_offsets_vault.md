@@ -1,7 +1,45 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.37)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.38)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
+
+## v1.38 — why those buttons did nothing, and proper multiple jobs
+
+### The bugs
+
+**The red ✕ did nothing** because it used a native `prompt()` to ask for a
+reason. iOS suppresses `prompt()` in an installed web app, so the dialog never
+appeared, the call returned nothing, and the code treated that as "cancelled".
+No dialogs are used in the job panel at all now — pressing ✕ opens a small
+amber strip in the row with a reason box and Confirm/Cancel, and removing a unit
+asks in the same way.
+
+**Adding a unit did nothing** for a different reason. In the empty state the
+button handlers were re-attached on every render instead of only when the markup
+changed, so a second render left two copies on each button — and "+ Add unit"
+toggled the form open and immediately closed again. Both branches now bind only
+when the markup was actually replaced.
+
+Both were tested with `prompt()` and `confirm()` deliberately throwing, which is
+how an installed iOS web app behaves.
+
+### Multiple jobs
+
+The page now holds as many jobs as you like, each with its own unit list and
+progress:
+
+- **A job selector** at the top of the panel: `ENQ139969 — Optegra Eye Hospital ·
+  1/4 · 2 left`. Switching is instant and each job remembers its own state.
+- **+ New job** starts one by hand with a reference, site and date — for work
+  with no jobsheet.
+- **Load jobsheet** creates a job, or merges into the one already there.
+
+**Merging by job reference.** Upload the same jobsheet tomorrow and it merges
+into the existing job rather than starting a second copy: certified units keep
+their ticks and certificate numbers, units marked not required stay marked,
+units added on site stay on the list, and anything new on the sheet is appended.
+Tested with a revised sheet carrying an extra unit — the extra appeared, nothing
+else moved.
 
 ## v1.37 — the worklist becomes a job control panel
 
@@ -728,13 +766,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v32**, caches all shared modules |
+| `sw.js` | Cache bumped to **v33**, caches all shared modules |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v32, then hit **Refresh offline copy**.
+picks up v33, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

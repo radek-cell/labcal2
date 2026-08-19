@@ -24,6 +24,8 @@
   var KEY_ROUTES  = 'labcal.jobsheet.routes';
   var KEY_PROGRESS = 'labcal.jobsheet.progress';
   var KEY_EXTRA = 'labcal.jobsheet.extra';   // units added on site, per job
+  var KEY_JOBS = 'labcal.jobsheet.jobs';     // every job, keyed by reference
+  var KEY_ACTIVE = 'labcal.jobsheet.active'; // which job is open
   var CHANGE_EVENT = 'labcal-jobsheet-changed';
 
   // ===================================================================
@@ -644,6 +646,7 @@
       done: false, doneAt: '', certRef: '', addedManually: true
     });
     writeJson(KEY_CURRENT, js);
+    saveActiveJob();
     announce();
     return entry;
   }
@@ -662,6 +665,7 @@
     js.devices.splice(idx, 1);
     js.devices.forEach(function (x, i) { x.idx = i; });
     writeJson(KEY_CURRENT, js);
+    saveActiveJob();
     announce();
     return true;
   }
@@ -734,13 +738,91 @@
         changed = true;
       }
     });
-    if (changed) writeJson(KEY_CURRENT, js);
+    if (changed) { writeJson(KEY_CURRENT, js); saveActiveJob(); }
     return changed;
   }
 
   function todayIso() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // ---- jobs -------------------------------------------------------------
+  // More than one job can be open at once; each keeps its own unit list and
+  // progress. A job is identified by its reference (the ENQ number), so
+  // loading the same jobsheet again merges into the job already there rather
+  // than starting a second copy of it.
+  function jobsStore() { return readJson(KEY_JOBS, {}) || {}; }
+  function jobKey(ref) { return String(ref || '').trim().toUpperCase() || 'NOJOB'; }
+
+  function listJobs() {
+    var all = jobsStore();
+    return Object.keys(all).map(function (k) {
+      var j = all[k];
+      var devices = j.devices || [];
+      var done = devices.filter(function (d) { return d.done; }).length;
+      var skipped = devices.filter(function (d) { return d.notRequired && !d.done; }).length;
+      return {
+        key: k, callNumber: j.callNumber || '', customer: j.customer || '',
+        day: j.day || '', openedAt: j.openedAt || '', fileName: j.fileName || '',
+        total: devices.length, done: done, notRequired: skipped,
+        outstanding: devices.length - done - skipped
+      };
+    }).sort(function (a, b) { return (b.openedAt || '') < (a.openedAt || '') ? -1 : 1; });
+  }
+
+  function activeKey() {
+    try { return global.localStorage.getItem(KEY_ACTIVE) || ''; } catch (e) { return ''; }
+  }
+  function setActiveJob(key) {
+    try { global.localStorage.setItem(KEY_ACTIVE, key || ''); } catch (e) {}
+    var all = jobsStore();
+    writeJson(KEY_CURRENT, all[key] || null);
+    if (all[key]) applyProgressToCurrent();
+    announce();
+    return current();
+  }
+  function saveActiveJob() {
+    var js = current();
+    if (!js) return;
+    var all = jobsStore();
+    all[jobKey(js.callNumber)] = js;
+    writeJson(KEY_JOBS, all);
+    try { global.localStorage.setItem(KEY_ACTIVE, jobKey(js.callNumber)); } catch (e) {}
+  }
+  function deleteJob(key) {
+    var all = jobsStore();
+    delete all[key];
+    writeJson(KEY_JOBS, all);
+    if (activeKey() === key) {
+      var next = Object.keys(all)[0] || '';
+      setActiveJob(next);
+    } else {
+      announce();
+    }
+  }
+
+  // A job created by hand, for work with no jobsheet.
+  function createJob(info) {
+    var ref = String((info && info.callNumber) || '').trim();
+    var js = {
+      openedAt: new Date().toISOString(),
+      day: (info && info.day) || todayIso(),
+      fileName: '',
+      customer: String((info && info.customer) || '').trim(),
+      callNumber: ref,
+      callDate: '', visitDate: '', address: '', department: '',
+      devices: [],
+      manual: true
+    };
+    var all = jobsStore();
+    if (all[jobKey(ref)]) return setActiveJob(jobKey(ref));   // already open
+    all[jobKey(ref)] = js;
+    writeJson(KEY_JOBS, all);
+    writeJson(KEY_CURRENT, js);
+    try { global.localStorage.setItem(KEY_ACTIVE, jobKey(ref)); } catch (e) {}
+    announce();
+    return current();
   }
 
   function current() {
@@ -753,6 +835,7 @@
   function setCurrent(parsed, fileName) {
     var js = {
       loadedAt: new Date().toISOString(),
+      openedAt: new Date().toISOString(),
       day: todayIso(),
       fileName: fileName || '',
       customer: parsed.customer || '',
@@ -778,6 +861,36 @@
         };
       })
     };
+    // Loading the same jobsheet again (day two of the same job) merges into
+    // the job already open rather than replacing it: units already on the
+    // list keep their state, and anything new on the sheet is appended.
+    var existing = jobsStore()[jobKey(js.callNumber)];
+    if (existing && existing.devices) {
+      var bySerial = {};
+      existing.devices.forEach(function (d) {
+        var k = serialKey(d.serial);
+        if (k) bySerial[k] = d;
+      });
+      js.devices = js.devices.map(function (d) {
+        var k = serialKey(d.serial);
+        var was = k && bySerial[k];
+        if (!was) return d;
+        delete bySerial[k];
+        // keep everything the engineer has decided about this unit
+        d.sheet = was.sheet || d.sheet;
+        d.sheetWhy = was.sheetWhy || d.sheetWhy;
+        d.done = was.done; d.doneAt = was.doneAt; d.certRef = was.certRef;
+        d.notRequired = was.notRequired; d.notRequiredReason = was.notRequiredReason;
+        d.carriedOver = was.carriedOver;
+        return d;
+      });
+      // units that were on the job but not on this sheet (added on site, or
+      // dropped from a revised sheet) stay on the list
+      Object.keys(bySerial).forEach(function (k) { js.devices.push(bySerial[k]); });
+      js.devices.forEach(function (d, i) { d.idx = i; });
+      js.openedAt = existing.openedAt || js.openedAt;
+    }
+
     // Units added by hand on an earlier visit belong to this job too, so put
     // them back when the jobsheet is loaded again.
     extrasFor(js.callNumber).forEach(function (x) {
@@ -797,6 +910,7 @@
     writeJson(KEY_CURRENT, js);
     // Same job, later day: bring yesterday's ticks back.
     applyProgressToCurrent();
+    saveActiveJob();
     announce();
     return current();
   }
@@ -938,6 +1052,12 @@
     current: current,
     setCurrent: setCurrent,
     clearCurrent: clearCurrent,
+    listJobs: listJobs,
+    activeKey: activeKey,
+    setActiveJob: setActiveJob,
+    createJob: createJob,
+    deleteJob: deleteJob,
+    jobKey: jobKey,
     updateDevice: updateDevice,
     markDone: markDone,
     progress: progress,

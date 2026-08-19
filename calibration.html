@@ -271,6 +271,43 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 .addform input.serial{width:150px}
 .addform input.loc{flex:1;min-width:120px}
 .prog .ptrack i.notreq{background:var(--muted-dim)}
+
+/* ---- job bar ---- */
+.jobbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.jobbar select{
+  font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid var(--border);
+  border-radius:7px;background:#fff;color:var(--ink);max-width:100%;flex:1;min-width:170px;
+}
+.jobbar .spacer{flex:1}
+.newjob{
+  display:none;gap:8px;flex-wrap:wrap;align-items:center;
+  margin-bottom:10px;padding:10px 12px;background:var(--bg2);
+  border:1px solid var(--border-soft);border-radius:7px;
+}
+.newjob.open{display:flex}
+.newjob input{
+  font-family:var(--sans);font-size:12.5px;padding:8px 10px;
+  border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--ink);
+}
+.newjob input.ref{width:140px}
+.newjob input.cust{flex:1;min-width:140px}
+.newjob input.day{width:150px}
+/* inline confirm, so nothing depends on a native dialog — iOS suppresses
+   prompt() in an installed web app, which made these buttons look dead */
+.inline-ask{
+  grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  margin-top:8px;padding:8px 10px;background:#fdf3e3;border:1px solid var(--amber-dim);border-radius:6px;
+}
+.inline-ask .q{font-size:12px;color:#7a4c06;font-weight:600}
+.inline-ask input{
+  flex:1;min-width:140px;font-family:var(--sans);font-size:12.5px;
+  padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:#fff;
+}
+.toast{
+  margin:10px 0 0;padding:8px 11px;border-radius:6px;font-size:12.5px;
+  background:#e9f5ea;border:1px solid var(--green);color:#20603a;
+}
+.toast.bad{background:#fdecea;border-color:#c0392b;color:#8a3222}
 .prog .split{color:var(--muted-dim)}
 .prog .ptrack i.started{background:var(--amber)}
 .ptrack{position:relative}
@@ -397,7 +434,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.37</span>
+    <span id="footYear">v1.38</span>
   </footer>
 
 </div>
@@ -569,7 +606,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.37 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.38 · ' + d.getFullYear();
 }
 
 
@@ -646,24 +683,105 @@ function bindRoutingFooter(){
 }
 
 let jobFilter = '';
+let askingIdx = null;      // which row is showing its inline "not required?" ask
+let removingIdx = null;    // which row is showing its inline remove confirm
+let jobToast = null;       // { text, bad }
+
+function toastHtml(){
+  if(!jobToast) return '';
+  const t = `<div class="toast${jobToast.bad?' bad':''}">${jesc(jobToast.text)}</div>`;
+  return t;
+}
+
+// The job bar: which job is open, and how to start another.
+function jobBarHtml(){
+  const jobs = LabCalJobsheet.listJobs();
+  const active = LabCalJobsheet.activeKey();
+  const opts = jobs.map(j=>{
+    const label = `${j.callNumber || '(no ref)'} — ${j.customer || 'no site'} · ${j.done}/${j.total}`
+      + (j.outstanding ? ` · ${j.outstanding} left` : ' · complete');
+    return `<option value="${jesc(j.key)}"${j.key===active?' selected':''}>${jesc(label)}</option>`;
+  }).join('');
+  return `
+    <div class="jobbar">
+      ${jobs.length ? `<select id="jobSelect" title="Switch job">${opts}</select>` : '<span class="job-sub">No job open</span>'}
+      <button class="jbtn ghost mini" type="button" id="jobNewBtn">+ New job</button>
+      <button class="jbtn ghost mini" type="button" id="jobLoadBtn2">Load jobsheet</button>
+    </div>
+    <div class="newjob" id="newJobForm">
+      <input class="ref" id="newJobRef" placeholder="Job ref (ENQ…)">
+      <input class="cust" id="newJobCust" placeholder="Site / customer">
+      <input class="day" id="newJobDay" type="date">
+      <button class="jbtn mini" type="button" id="newJobConfirm">Start job</button>
+      <button class="jbtn ghost mini" type="button" id="newJobCancel">Cancel</button>
+    </div>`;
+}
+
+function bindJobBar(){
+  const sel = document.getElementById('jobSelect');
+  if(sel) sel.addEventListener('change', ()=>{
+    LabCalJobsheet.setActiveJob(sel.value);
+    jobFilter=''; askingIdx=null; removingIdx=null; jobToast=null;
+    renderJobPanel();
+  });
+  const nb = document.getElementById('jobNewBtn');
+  if(nb) nb.addEventListener('click', ()=>{
+    const f = document.getElementById('newJobForm');
+    f.classList.toggle('open');
+    if(f.classList.contains('open')){
+      const day = document.getElementById('newJobDay');
+      if(day && !day.value) day.value = new Date().toISOString().slice(0,10);
+      document.getElementById('newJobRef').focus();
+    }
+  });
+  const nc = document.getElementById('newJobConfirm');
+  if(nc) nc.addEventListener('click', ()=>{
+    // A re-render can leave a detached copy of this button behind; ignore a
+    // click that arrives once the form has already been closed rather than
+    // reporting an empty reference the engineer never typed.
+    const form = document.getElementById('newJobForm');
+    if(form && !form.classList.contains('open')) return;
+    const ref = document.getElementById('newJobRef').value.trim();
+    const cust = document.getElementById('newJobCust').value.trim();
+    const day = document.getElementById('newJobDay').value;
+    if(!ref){ jobToast={text:'Give the job a reference (the ENQ number) so certificates can be grouped by it.',bad:true}; renderJobPanel(); return; }
+    if(form) form.classList.remove('open');
+    LabCalJobsheet.createJob({callNumber:ref, customer:cust, day});
+    jobToast={text:`Job ${ref} started. Add units, or load its jobsheet.`};
+    jobFilter=''; renderJobPanel();
+  });
+  const nx = document.getElementById('newJobCancel');
+  if(nx) nx.addEventListener('click', ()=>{ document.getElementById('newJobForm').classList.remove('open'); });
+  const lb = document.getElementById('jobLoadBtn2');
+  if(lb) lb.addEventListener('click', ()=>jobFile.click());
+}
+
 function renderJobPanel(){
   if(!jobPanel || !window.LabCalJobsheet) return;
   const js = LabCalJobsheet.current();
 
   if(!js){
-    setHtml(jobPanel, `
+    const emptyChanged = setHtml(jobPanel, `
+      ${jobBarHtml()}
+      ${toastHtml()}
       <div class="job-head">
         <div>
-          <p class="job-title">No jobsheet loaded</p>
+          <p class="job-title">No job open</p>
           <div class="job-sub">Optional — load the jobsheet PDF and each unit on it opens the right worksheet with the customer, job reference, model and serial already filled in. Or just pick a worksheet below and work as usual.</div>
         </div>
         <div class="job-actions"><button class="jbtn" type="button" id="jobLoadBtn">Load jobsheet PDF</button></div>
       </div>
       ${routingFooter()}`);
     jobPanel.className = 'job empty';
-    const b = document.getElementById('jobLoadBtn');
-    if(b) b.addEventListener('click', ()=>jobFile.click());
-    bindRoutingFooter();
+    // Only bind when the markup was actually replaced. Binding on every
+    // render attached a second copy of each handler to the same buttons, so
+    // "+ New job" toggled the form open and straight back closed again.
+    if(emptyChanged){
+      const b = document.getElementById('jobLoadBtn');
+      if(b) b.addEventListener('click', ()=>jobFile.click());
+      bindJobBar();
+      bindRoutingFooter();
+    }
     return;
   }
 
@@ -713,11 +831,26 @@ function renderJobPanel(){
              ${d.done ? '' : `<button class="jbtn cross mini" type="button" data-skip="${i}" title="Not required — not on site, or customer declined">✕</button>`}`}
         ${d.addedManually && !d.done ? `<button class="jbtn ghost mini" type="button" data-remove="${i}" title="Remove this added unit">Remove</button>` : ''}
       </div>
+      ${askingIdx === i ? `
+      <div class="inline-ask">
+        <span class="q">Not required —</span>
+        <input id="skipReason" placeholder="Reason (not on site, customer declined…) — optional">
+        <button class="jbtn mini" type="button" data-skip-ok="${i}">Confirm</button>
+        <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
+      </div>` : ''}
+      ${removingIdx === i ? `
+      <div class="inline-ask">
+        <span class="q">Remove ${jesc(d.serial || d.model)} from this job?</span>
+        <button class="jbtn mini" type="button" data-remove-ok="${i}">Remove</button>
+        <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
+      </div>` : ''}
       ${blocked?`<div class="jdev-warn">${jesc(blocked)}</div>`:''}
     </div>`;
   }).join('');
 
   const html = `
+    ${jobBarHtml()}
+    ${toastHtml()}
     <div class="job-head">
       <div>
         <p class="job-title">Worklist — ${js.devices.length} unit${js.devices.length===1?'':'s'}${p.earlier?' · continued':''}</p>
@@ -777,17 +910,30 @@ function renderJobPanel(){
       if(again){ again.focus(); try{ again.setSelectionRange(at, at); }catch(e){} }
     });
 
-    // --- not required / put back ---
+    // --- not required / put back (inline, no native dialogs) ---
     jobPanel.querySelectorAll('[data-skip]').forEach(btn=>btn.addEventListener('click',()=>{
-      const d = LabCalJobsheet.current().devices[Number(btn.getAttribute('data-skip'))];
-      const why = prompt(`Mark ${d.serial || d.model} as not required?\n\nOptional reason (not on site, customer declined, etc.):`, '');
-      if(why === null) return;                    // cancelled
-      LabCalJobsheet.setNotRequired(LabCalJobsheet.current().callNumber, d.serial, true, why);
+      askingIdx = Number(btn.getAttribute('data-skip'));
+      removingIdx = null; jobToast = null;
       renderJobPanel();
+      const r = document.getElementById('skipReason');
+      if(r) r.focus();
+    }));
+    jobPanel.querySelectorAll('[data-skip-ok]').forEach(btn=>btn.addEventListener('click',()=>{
+      const i = Number(btn.getAttribute('data-skip-ok'));
+      const d = LabCalJobsheet.current().devices[i];
+      const reason = (document.getElementById('skipReason')||{value:''}).value.trim();
+      LabCalJobsheet.setNotRequired(LabCalJobsheet.current().callNumber, d.serial, true, reason);
+      askingIdx = null;
+      jobToast = {text:`${d.serial || d.model} marked not required.`};
+      renderJobPanel();
+    }));
+    jobPanel.querySelectorAll('[data-ask-cancel]').forEach(btn=>btn.addEventListener('click',()=>{
+      askingIdx = null; removingIdx = null; renderJobPanel();
     }));
     jobPanel.querySelectorAll('[data-restore]').forEach(btn=>btn.addEventListener('click',()=>{
       const d = LabCalJobsheet.current().devices[Number(btn.getAttribute('data-restore'))];
       LabCalJobsheet.setNotRequired(LabCalJobsheet.current().callNumber, d.serial, false);
+      jobToast = {text:`${d.serial || d.model} put back on the list.`};
       renderJobPanel();
     }));
 
@@ -800,12 +946,20 @@ function renderJobPanel(){
     });
     const addConfirm = document.getElementById('addConfirm');
     if(addConfirm) addConfirm.addEventListener('click', ()=>{
+      const form = document.getElementById('jobAddForm');
+      if(form && !form.classList.contains('open')) return;
       const model = document.getElementById('addModel').value.trim();
       const serial = document.getElementById('addSerial').value.trim();
       const loc = document.getElementById('addLoc').value.trim();
-      if(!model && !serial){ alert('Enter at least a model or a serial number.'); return; }
+      if(!model && !serial){
+        jobToast = {text:'Enter at least a model or a serial number.', bad:true};
+        renderJobPanel();
+        return;
+      }
       const added = LabCalJobsheet.addDevice({model, serial, location: loc});
-      if(!added){ alert('That unit could not be added.'); return; }
+      jobToast = added
+        ? {text:`${serial || model} added to this job.`}
+        : {text:'That unit could not be added.', bad:true};
       jobFilter = '';
       renderJobPanel();
     });
@@ -814,12 +968,18 @@ function renderJobPanel(){
       document.getElementById('jobAddForm').classList.remove('open');
     });
     jobPanel.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click',()=>{
-      const i = Number(btn.getAttribute('data-remove'));
+      removingIdx = Number(btn.getAttribute('data-remove'));
+      askingIdx = null; jobToast = null;
+      renderJobPanel();
+    }));
+    jobPanel.querySelectorAll('[data-remove-ok]').forEach(btn=>btn.addEventListener('click',()=>{
+      const i = Number(btn.getAttribute('data-remove-ok'));
       const d = LabCalJobsheet.current().devices[i];
-      if(confirm(`Remove ${d.serial || d.model} from this job?\n\nOnly units added on site can be removed; jobsheet units stay.`)){
-        LabCalJobsheet.removeDevice(i);
-        renderJobPanel();
-      }
+      const label = d.serial || d.model;
+      LabCalJobsheet.removeDevice(i);
+      removingIdx = null;
+      jobToast = {text:`${label} removed from this job.`};
+      renderJobPanel();
     }));
 
     const cb = document.getElementById('jobClearBtn');
@@ -828,6 +988,7 @@ function renderJobPanel(){
         LabCalJobsheet.clearCurrent();
       }
     });
+    bindJobBar();
     bindRoutingFooter();
   }
   jobPanel.className = 'job';
@@ -946,6 +1107,8 @@ async function renderCertPanel(){
   }).join('');
 
   const html = `
+    ${jobBarHtml()}
+    ${toastHtml()}
     <div class="job-head">
       <div>
         <p class="job-title">Certificates ${day===LabCalCerts.todayIso()?'today':'on '+jesc(fmtDay(day))} — ${list.length} across ${jobs.length} job${jobs.length===1?'':'s'}</p>
