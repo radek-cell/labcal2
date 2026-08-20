@@ -78,14 +78,6 @@ button{cursor:pointer}
 
 /* ---------- layout ---------- */
 .wrap{display:grid;grid-template-columns:290px 1fr;gap:16px;padding:16px;align-items:start;max-width:1680px;margin:0 auto}
-@media(max-width:1000px){
-  .wrap{display:flex;flex-direction:column;align-items:stretch}
-  .main,.side{width:100%}
-  body.loaded .main{order:1} body.loaded .side{order:2}
-  #cal,.seg,.quick{max-width:440px}
-  .fields{max-width:520px}
-  .drop{max-width:520px}
-}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);min-width:0}
 .main,.side{min-width:0}
 .tbl-scroll{max-width:100%}
@@ -96,8 +88,72 @@ button{cursor:pointer}
 }
 .card>h2 .tag{margin-left:auto;font-size:10.5px;letter-spacing:.4px;color:var(--txt-3);font-weight:500;text-transform:none}
 .body{padding:14px}
-.side{position:sticky;top:74px}
-@media(max-width:1000px){ .side{position:static} }
+@media(min-width:1101px){ .side{position:sticky;top:74px} }
+
+/* ---------- tablet / phone: controls become a slide-over panel ---------- */
+.panel-btn{display:none}
+.side-head{display:none}
+.scrim{display:none}
+@media(max-width:1100px){
+  .wrap{display:block;padding:12px;padding-bottom:26px}
+  .main{width:100%}
+  /* before a folder is loaded the panel would hide the only useful control, so keep it inline */
+  body:not(.loaded) .side{width:100%;max-width:560px;margin:0 auto 14px}
+  body.loaded .panel-btn{display:inline-flex;align-items:center;gap:7px}
+  body.loaded .side{
+    position:fixed;top:0;left:0;bottom:0;z-index:130;
+    width:min(90vw,370px);background:var(--paper);border-right:1px solid var(--line);
+    padding:8px 12px calc(30px + env(safe-area-inset-bottom));
+    padding-top:calc(10px + env(safe-area-inset-top));
+    overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    transform:translateX(-103%);transition:transform .22s cubic-bezier(.32,.72,0,1);
+  }
+  body.loaded.panel .side{transform:none;box-shadow:0 0 44px rgba(11,31,51,.3)}
+  body.loaded .side-head{
+    display:flex;align-items:center;gap:10px;padding:2px 2px 10px;
+    font-size:11.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink-3)
+  }
+  .side-head button{
+    margin-left:auto;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
+    background:#fff;color:var(--ink-3);font-size:19px;line-height:1;display:grid;place-items:center
+  }
+  body.loaded .scrim{
+    display:block;position:fixed;inset:0;z-index:120;background:rgba(6,24,38,.42);
+    opacity:0;pointer-events:none;transition:opacity .22s
+  }
+  body.loaded.panel .scrim{opacity:1;pointer-events:auto}
+  body.panel{overflow:hidden}
+  #chart{height:clamp(300px,46vh,440px)}
+}
+
+/* ---------- finger-sized targets on touch screens ---------- */
+@media(pointer:coarse){
+  .f input,.f select{padding:10px 11px;font-size:16px}  /* 16px stops iOS zooming the page on focus */
+  .day{height:46px;font-size:12px}
+  .seg button{padding:11px 4px;font-size:13px}
+  .quick button{padding:11px 6px;font-size:12.5px}
+  .mo-nav button{width:38px;height:38px;font-size:18px}
+  .mo-nav select{padding:10px 8px;font-size:13.5px}
+  .chip{padding:8px 13px;font-size:13px}
+  .zbtn{min-width:36px;height:36px}
+  .zbtn.wide{padding:0 14px}
+  .pick label{padding:13px 12px;font-size:14px}
+  .tb-btn{padding:9px 13px}
+  .clear-btn{padding:11px 10px}
+  td{padding:10px 12px}
+  .alert-body .dates button{padding:7px 13px}
+  .lnk{font-size:13px}
+  .daynav button{width:40px;height:40px}
+}
+
+/* ---------- day stepper on the summary strip ---------- */
+.daynav{display:flex;align-items:center;gap:6px;margin-left:auto}
+.daynav button{
+  width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:9px;
+  font-size:17px;font-weight:700;color:var(--ink-3);line-height:1;display:grid;place-items:center
+}
+.daynav button:hover:not(:disabled){background:var(--ice-soft);border-color:var(--ice)}
+.daynav button:disabled{opacity:.3;cursor:default}
 
 /* ---------- drop zone ---------- */
 .drop{
@@ -267,6 +323,7 @@ th{
 }
 td{padding:7px 12px;border-bottom:1px solid var(--line-2);font-family:var(--mono);white-space:nowrap}
 td.txt{font-family:var(--sans)}
+td.approx{color:var(--txt-3)}
 tr:last-child td{border-bottom:0}
 tbody tr.click{cursor:pointer}
 tbody tr.click:hover{background:var(--ice-soft)}
@@ -305,7 +362,7 @@ tbody tr.click:hover{background:var(--ice-soft)}
 @media print{
   @page{size:A4 landscape;margin:10mm}
   body{background:#fff}
-  .topbar,.side,.chart-top,.noprint,.foot,.toast,.alert-body .dates{display:none!important}
+  .topbar,.side,.scrim,.chart-top,.noprint,.foot,.toast,.alert-body .dates{display:none!important}
   .wrap{display:block;padding:0;max-width:none}
   .card{box-shadow:none;border-color:#bbb;break-inside:avoid;margin-bottom:8px}
   .card+.card{margin-top:8px}
@@ -331,6 +388,7 @@ tbody tr.click:hover{background:var(--ice-soft)}
   </div>
   <span class="range-badge" id="rangeBadge" hidden></span>
   <div class="spacer"></div>
+  <button class="tb-btn panel-btn" id="btnPanel" title="Dates, limits and loading">☰<span class="lg">Controls</span></button>
   <button class="tb-btn" id="btnPng" disabled><span class="lg">Save chart</span><span class="sm">PNG</span></button>
   <button class="tb-btn" id="btnCsv" disabled><span class="lg">Export summary</span><span class="sm">CSV</span></button>
   <button class="tb-btn primary" id="btnPrint" disabled><span class="lg">Print report</span><span class="sm">Print</span></button>
@@ -340,6 +398,8 @@ tbody tr.click:hover{background:var(--ice-soft)}
 
   <!-- ============ SIDEBAR ============ -->
   <div class="side">
+
+    <div class="side-head">Controls<button id="btnPanelClose" title="Close">×</button></div>
 
     <div class="card" id="loadCard">
       <h2>Load data</h2>
@@ -384,6 +444,7 @@ tbody tr.click:hover{background:var(--ice-soft)}
             <label for="preset">Preset</label>
             <select id="preset">
               <option value="custom">Custom</option>
+              <option value="ibb" hidden>IBB blood bank · air 2 to 8, load 2 to 6 °C</option>
               <option value="2,6">Blood bank fridge · 2 to 6 °C</option>
               <option value="2,8">Pharmacy / vaccine fridge · 2 to 8 °C</option>
               <option value="20,24">Platelet incubator · 20 to 24 °C</option>
@@ -391,11 +452,19 @@ tbody tr.click:hover{background:var(--ice-soft)}
               <option value="-90,-60">Ultra-low freezer · −90 to −60 °C</option>
             </select>
           </div>
-          <div class="f"><label for="lo">Low limit °C</label><input id="lo" type="number" step="0.1" value="2"></div>
-          <div class="f"><label for="hi">High limit °C</label><input id="hi" type="number" step="0.1" value="8"></div>
+          <div class="f"><label for="lo" id="labLo">Low limit °C</label><input id="lo" type="number" step="0.1" value="2"></div>
+          <div class="f"><label for="hi" id="labHi">High limit °C</label><input id="hi" type="number" step="0.1" value="8"></div>
+          <div class="f" id="fLoadLo" hidden><label for="loadLo">Load low °C</label><input id="loadLo" type="number" step="0.1" value="2"></div>
+          <div class="f" id="fLoadHi" hidden><label for="loadHi">Load high °C</label><input id="loadHi" type="number" step="0.1" value="6"></div>
           <div class="f"><label for="minDur">Ignore under</label><input id="minDur" type="number" step="1" min="0" value="1"></div>
           <div class="f"><label for="chan">Assess</label>
-            <select id="chan"><option value="both">T1 and T2</option><option value="1">T1 only</option><option value="2">T2 only</option><option value="3" hidden>T3 only</option></select>
+            <select id="chan">
+              <option value="both" selected>T1 and T2</option>
+              <option value="all" hidden>T1, T2 and T3</option>
+              <option value="1">T1 only</option>
+              <option value="2">T2 only</option>
+              <option value="3" hidden>T3 only</option>
+            </select>
           </div>
         </div>
         <div class="hint">Excursions shorter than the minutes above are ignored, so a single blip during a defrost cycle doesn't flag the whole day.</div>
@@ -428,6 +497,11 @@ tbody tr.click:hover{background:var(--ice-soft)}
       <div class="alert-body" id="mixedBody"></div>
     </div>
 
+    <div class="card notice" id="clkCard" hidden>
+      <div class="alert-head"><span class="warn-mark amber">!</span><b id="clkTitle"></b></div>
+      <div class="alert-body" id="clkBody"></div>
+    </div>
+
     <div class="card notice" id="pwrCard" hidden>
       <div class="alert-head"><span class="warn-mark amber">!</span><b id="pwrTitle"></b></div>
       <div class="alert-body" id="pwrBody"></div>
@@ -445,6 +519,10 @@ tbody tr.click:hover{background:var(--ice-soft)}
         <span class="range-tag" id="rangeTag" hidden></span>
         <div class="meta" id="rangeLbl"></div>
         <div class="meta" id="cover"></div>
+        <div class="daynav noprint" id="dayNav" hidden>
+          <button id="dPrev" title="Previous day">‹</button>
+          <button id="dNext" title="Next day">›</button>
+        </div>
       </div>
       <div class="verdict" id="verdict"><span class="dot"></span><span id="verdictTxt"></span></div>
       <div class="stats" id="stats"></div>
@@ -453,8 +531,8 @@ tbody tr.click:hover{background:var(--ice-soft)}
     <div class="card" id="chartCard" hidden>
       <h2>Temperature trace <span class="tag" id="resLbl"></span></h2>
       <div class="chart-top noprint">
-        <button class="chip on" data-s="t1"><i class="c1"></i>T1 air</button>
-        <button class="chip on" data-s="t2"><i class="c2"></i>T2 load</button>
+        <button class="chip on" data-s="t1"><i class="c1"></i><span id="labT1">T1 air</span></button>
+        <button class="chip on" data-s="t2"><i class="c2"></i><span id="labT2">T2 load</span></button>
         <button class="chip on" data-s="t3" hidden><i class="c3"></i>T3 probe</button>
         <button class="chip on" data-s="band"><i class="cb" style="background:#9ed4e6"></i>Limit band</button>
         <button class="chip on" data-s="door"><i class="cd"></i>Door open</button>
@@ -473,8 +551,8 @@ tbody tr.click:hover{background:var(--ice-soft)}
         <div class="tip" id="tip"></div>
       </div>
       <div class="legend">
-        <span><i style="background:var(--t1)"></i>T1 air sensor</span>
-        <span><i style="background:var(--t2)"></i>T2 load / bottle sensor</span>
+        <span><i style="background:var(--t1)"></i><span id="legT1">T1 air sensor</span></span>
+        <span><i style="background:var(--t2)"></i><span id="legT2">T2 load / bottle sensor</span></span>
         <span id="t3Legend" hidden><i style="background:var(--t3)"></i>T3 probe</span>
         <span><i style="background:#9ed4e6;height:10px;border-radius:2px"></i>Within limits</span>
         <span><i style="background:var(--warn);height:10px;width:4px"></i>Door open</span>
@@ -492,7 +570,7 @@ tbody tr.click:hover{background:var(--ice-soft)}
     <div class="card" id="rtCard" hidden>
       <h2>Controller events <span class="tag" id="rtCount"></span></h2>
       <div class="tbl-scroll"><table id="rtTbl"></table></div>
-      <div class="foot noprint">Tap a row to zoom to it. Codes decoded from the table in Labcold's own CSV Viewer.</div>
+      <div class="foot noprint" id="rtFoot">Tap a row to zoom to it. Codes decoded from the table in Labcold's own CSV Viewer.</div>
     </div>
 
     <div class="card" id="excCard" hidden>
@@ -510,6 +588,7 @@ tbody tr.click:hover{background:var(--ice-soft)}
   </div>
 </div>
 
+<div class="scrim" id="scrim"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -526,12 +605,14 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 
 const DAYS = new Map();           // 'YYYY-MM-DD' -> day object
 let META = {job:'', customer:'', unit:'', fw:'', pn:'', setpoint:null, title:'',
-            range:'', controller:'', fileLimits:null};
+            range:'', controller:'', fileLimits:null, product:''};
 let SEL  = {mode:'day', from:null, to:null, anchor:null};
 let SHOW = {t1:true, t2:true, t3:true, band:true, door:true, comp:false};
+/* probe names change with the model — a blood bank recorder logs Air and Load */
+let CHL  = {a:'T1', b:'T2', e:'T3'};
 let VIEW = null;                  // current computed view
 let HAS_T3 = false;               // a third probe is fitted on some models
-let LIMITS = {lo:2, hi:8, minDur:1, chan:'both'};
+let LIMITS = {lo:2, hi:8, loadLo:2, loadHi:6, dual:false, minDur:1, chan:'both'};
 
 /* ---------- tiny store (safe if storage is blocked) ---------- */
 const store = {
@@ -546,9 +627,10 @@ const fromIso = s => { const p=s.split('-').map(Number); return new Date(p[0],p[
 const fmtDate = s => { const d=fromIso(s); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear(); };
 const fmtDateShort = s => { const d=fromIso(s);
   return pad(d.getDate())+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]; };
-const hhmm = m => pad(Math.floor(m/60))+':'+pad(m%60);
+const hhmm = m => pad(Math.floor(m/60))+':'+pad(Math.floor(m%60));
 const t1 = v => (v===null||v===undefined||!isFinite(v)) ? '—' : v.toFixed(1);
 function dur(mins){
+  mins = Math.round(mins);
   if(mins<60) return mins+' min';
   const h=Math.floor(mins/60), m=mins%60;
   if(h<24) return h+'h '+pad(m)+'m';
@@ -625,6 +707,22 @@ function parseCsv(text, fileName){
     });
   }
   if(!rows.length) return null;
+
+  /* A mains failure restarts the controller clock partway through the day, so the file
+     carries on at an earlier time and a block of minutes gets logged twice with two
+     completely different traces. Sorted by time they interleave and the chart looks
+     like it is oscillating every reading. Record the overlap so it can be flagged. */
+  const clockResets=[];
+  for(let i=1;i<rows.length;i++){
+    if(rows[i].m < rows[i-1].m - 2){
+      const end=rows[i-1].m;
+      let j=i, hi=rows[i].m;
+      while(j<rows.length && rows[j].m<=end){ if(rows[j].m>hi) hi=rows[j].m; j++; }
+      clockResets.push({from:rows[i].m, to:hi, n:j-i});
+      i=j;
+    }
+  }
+
   rows.sort((r,s)=>r.m-s.m);
 
   const sp = parseFloat(head['set point']);
@@ -637,6 +735,7 @@ function parseCsv(text, fileName){
     fw: head['firmware issue']||'',
     pn: head['controller pn']||'',
     range: '19',
+    clockResets,
     hasDoor: true,
     hasT3: false,
     fileLimits: null,
@@ -686,7 +785,207 @@ const EVENT_CODES = {
   '[61]':{d:'Serial number or name changed', g:'status'},
   '[70]':{d:'Alarms/warnings muted',       g:'status'}
 };
-function codeInfo(c){ return EVENT_CODES[c] || {d:'Unrecognised code '+c, g:'status'}; }
+/* Labcold logs numbered codes; the blood bank recorder logs plain sentences */
+function codeInfo(c){
+  if(EVENT_CODES[c]) return EVENT_CODES[c];
+  if(/^\[/.test(c)) return {d:'Unrecognised code '+c, g:'status'};
+  const t=c.toLowerCase();
+  let g='status';
+  if(/alarm|underspeed|overspeed|error|fail/.test(t)) g='alarm';
+  if(/batt/.test(t)) g='battery';
+  if(/mains|power|ac ok|dc ok|startup|shutdown|power up/.test(t)) g='power';
+  if(/door/.test(t)) g='door';
+  if(/sensor|refrigeration|compressor|fan|agitator/.test(t)) g='fault';
+  if(/changed|enabled|disabled|revision|clonefile|valid |reset/.test(t)) g='status';
+  return {d:c, g};
+}
+
+/* ---------- IBB blood bank (chart recorder G1 export) ----------
+   "Date/Time",,"Air","Load","Door" at a 20 second sample. One file covers the
+   stretch between two power ups, so it can span several days, and message rows
+   sit between the readings with the temperature columns empty. */
+/* a byte order mark survives as \uFEFF when decoded as UTF-8 and as three
+   stray characters when the file is read as latin-1 */
+function stripBom(t){ return t.replace(/^(\uFEFF|\u00EF\u00BB\u00BF)/,''); }
+
+function splitCsvLine(line){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(q){
+      if(c==='"'){ if(line[i+1]==='"'){ cur+='"'; i++; } else q=false; }
+      else cur+=c;
+    }else{
+      if(c==='"') q=true;
+      else if(c===','){ out.push(cur.trim()); cur=''; }
+      else cur+=c;
+    }
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+function spreadWithinMinute(rows){
+  let i=0;
+  while(i<rows.length){
+    let j=i;
+    while(j+1<rows.length && rows[j+1].m===rows[i].m) j++;
+    const n=j-i+1;
+    if(n>1) for(let k=0;k<n;k++) rows[i+k].m += k/n;
+    i=j+1;
+  }
+}
+
+function parseIBB(text, fileName){
+  const lines = stripBom(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  let hRow=-1;
+  /* the recorder writes "Date/Time"; the same data re-exported from the HMI writes DateTime */
+  for(let i=0;i<Math.min(lines.length,40);i++){
+    if(/^"?Date\s?\/?\s?Time"?\s*,/i.test(lines[i])){ hRow=i; break; }
+  }
+  if(hRow<0) return null;
+
+  const cols = splitCsvLine(lines[hRow]).map(s=>s.toUpperCase());
+  const iAir=cols.indexOf('AIR'), iLoad=cols.indexOf('LOAD'), iDoor=cols.indexOf('DOOR');
+  if(iAir<0) return null;
+
+  /* the preamble carries the recorder identity and the door coding */
+  let mac='', group='', sw='', doorClosedIs='1';
+  for(let i=0;i<hRow;i++){
+    const p=splitCsvLine(lines[i]);
+    for(let j=0;j<p.length-1;j++){
+      const k=p[j].toUpperCase();
+      if(k==='MAC ADDRESS=') mac=p[j+1];
+      if(k==='SOFTWARE VERSION=') sw=p[j+1];
+    }
+    if(p[0].toUpperCase()==='GROUPNAME') group=p[1]||'';
+    if(p[0].toUpperCase()==='DOOR'){
+      for(let j=1;j<p.length-1;j++) if(/CLOSED/i.test(p[j+1])) doorClosedIs=p[j].replace('=','').trim();
+    }
+  }
+
+  const byDate=new Map();
+  let noSecs=false;
+  for(let i=hRow+1;i<lines.length;i++){
+    const L=lines[i];
+    if(!L || !L.trim()) continue;
+    const p=splitCsvLine(L);
+    /* DD/MM/YY HH:MM:SS.mmm */
+    const dm=(p[0]||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/);
+    if(!dm) continue;
+    let y=+dm[3]; if(y<100) y+=2000;
+    const dateKey = y+'-'+pad(+dm[2])+'-'+pad(+dm[1]);
+    const m = (+dm[4])*60 + (+dm[5]) + (dm[6]? (+dm[6])/60 : 0);
+
+    if(!dm[6]) noSecs=true;
+    /* the re-exported variant repeats the timestamp inside the message */
+    const msg = (p[1]||'').trim().replace(/^\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}(?::\d{2})?\s+/,'');
+    const av = parseFloat(p[iAir]), bv = iLoad>=0?parseFloat(p[iLoad]):NaN;
+    const dv = iDoor>=0 ? (p[iDoor]||'').trim() : '';
+    const hasReading = isFinite(av) || isFinite(bv);
+    if(!hasReading && !msg) continue;
+
+    if(!byDate.has(dateKey)) byDate.set(dateKey,[]);
+    byDate.get(dateKey).push({
+      m,
+      a: isFinite(av)?av:null,
+      b: isFinite(bv)?bv:null,
+      e: null,
+      d: dv===''? 0 : (dv===doorClosedIs || /closed/i.test(dv) ? 0 : 1),
+      c: 0,                       /* this recorder does not log the compressor */
+      x: 0, p: 0,
+      rt: msg || null
+    });
+  }
+  if(!byDate.size) return null;
+
+  const out=[];
+  for(const [date,rows] of byDate){
+    rows.sort((r,s)=>r.m-s.m);
+    /* An HMI re-export drops the seconds, so three readings a minute all land on
+       the same timestamp. Left alone they stack on one x and the trace draws as a
+       staircase of vertical risers. Spread them evenly across their own minute. */
+    if(noSecs) spreadWithinMinute(rows);
+    out.push({
+      date, rows, file:fileName,
+      setpoint: null,
+      unit: 'Blood bank refrigerator',
+      fw: sw, pn: mac || group || '',
+      range: 'IBB',
+      controller: mac,
+      serial: '',
+      hasDoor: iDoor>=0,
+      hasComp: false,
+      hasT3: false,
+      clockResets: [],
+      iv: medianInterval(rows)
+    });
+  }
+  return out;
+}
+
+/* ---------- IBB HMI event log (P021EventLogs_<serial>/YYYY-MM.csv) ----------
+   Not a trace — an audit trail. It carries the configured alarm limits, the
+   product mode and every alarm, so it is read for settings and merged into
+   the controller events of whatever days the trace already covers. */
+function parseIBBEventLog(text, fileName){
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if(!/Serial No:/i.test(lines[0]||'')) return null;
+  const sm=(lines[0]||'').match(/Serial No:\s*(\S+)/i);
+  const fm=(lines[0]||'').match(/Firmware Version:\s*(\S+)/i);
+  let hRow=-1;
+  for(let i=0;i<Math.min(lines.length,6);i++) if(/^\s*ID\s*,\s*Type\s*,/i.test(lines[i])){ hRow=i; break; }
+  if(hRow<0) return null;
+
+  const evs=[]; const settings=[];
+  for(let i=hRow+1;i<lines.length;i++){
+    const p=splitCsvLine(lines[i]);
+    if(p.length<8) continue;
+    const type=(p[1]||'').trim(), name=(p[2]||'').trim(), start=(p[3]||'').trim();
+    if(!name || !start) continue;
+    const dm=start.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if(!dm) continue;
+    const dateKey=dm[3]+'-'+pad(+dm[2])+'-'+pad(+dm[1]);
+    const m=(+dm[4])*60+(+dm[5])+(dm[6]?(+dm[6])/60:0);
+    const air=parseFloat(p[6]), load=parseFloat(p[7]);
+    const data=(p[9]||'').trim();
+    evs.push({date:dateKey, m, name, type, a:isFinite(air)?air:null, b:isFinite(load)?load:null, data});
+    if(/limit changed$/i.test(name) || /^Product changed to /i.test(name))
+      settings.push({date:dateKey, m, name, data});
+  }
+  if(!evs.length) return null;
+  return {kind:'evlog', serial:sm?sm[1]:'', fw:fm?fm[1]:'', events:evs, settings, file:fileName};
+}
+
+/* Firmware 1.1.5 writes some limits as the raw 32 bit float bits rather than the
+   number itself — 1073741824 is 0x40000000, which is 2.0 °C. Decode those back. */
+function evNum(txt){
+  const v=parseFloat(txt);
+  if(!isFinite(v)) return null;
+  if(Number.isInteger(v) && !/[.]/.test(txt) && Math.abs(v)>=1e5 && Math.abs(v)<=4294967295){
+    const dv=new DataView(new ArrayBuffer(4));
+    dv.setUint32(0, v>>>0);
+    const f=dv.getFloat32(0);
+    if(isFinite(f) && Math.abs(f)<1000) return Math.round(f*100)/100;
+  }
+  return v;
+}
+
+/* the last configured value wins, so read the settings in time order */
+function limitsFromSettings(settings){
+  const ord = settings.slice().sort((x,y)=> x.date===y.date ? x.m-y.m : (x.date<y.date?-1:1));
+  const out={air:{lo:null,hi:null}, load:{lo:null,hi:null}, product:''};
+  for(const s of ord){
+    const v=evNum(s.data);
+    if(/^Product changed to /i.test(s.name)) out.product = s.name.replace(/^Product changed to /i,'').trim();
+    if(v===null || !isFinite(v)) continue;
+    if(/^Air temp low limit/i.test(s.name))   out.air.lo=v;
+    if(/^Air temp high limit/i.test(s.name))  out.air.hi=v;
+    if(/^Load temp low limit/i.test(s.name))  out.load.lo=v;
+    if(/^Load temp high limit/i.test(s.name)) out.load.hi=v;
+  }
+  return out;
+}
 
 /* ---------- 24-range controller export ----------
    One file can hold several days. Rows come at ~2 minute intervals,
@@ -784,14 +1083,15 @@ function parse24(text, fileName){
   return out;
 }
 
-/* logging interval in minutes, used so durations stay honest across models */
+/* logging interval in minutes, used so durations stay honest across models.
+   The blood bank recorder samples every 20 seconds, so this can be a fraction. */
 function medianInterval(rows){
   if(rows.length<3) return 1;
   const gaps=[];
   for(let i=1;i<rows.length;i++){ const g=rows[i].m-rows[i-1].m; if(g>0 && g<=60) gaps.push(g); }
   if(!gaps.length) return 1;
   gaps.sort((a,b)=>a-b);
-  return Math.max(1, gaps[Math.floor(gaps.length/2)]);
+  return Math.max(1/60, gaps[Math.floor(gaps.length/2)]);
 }
 
 /* pick the right reader for whatever was dropped in */
@@ -886,15 +1186,59 @@ function parse10(text, fileName){
 }
 
 function parseFile(text, fileName){
-  if(/^\s*Controller Name\s*,/i.test(text.slice(0,200))) return parse24(text, fileName);
+  const head = stripBom(text).slice(0,400);
+  if(/Serial No:/i.test(head) && /\bID\s*,\s*Type\s*,/i.test(text.slice(0,600))) return parseIBBEventLog(text, fileName);
+  if(/"?Date\s?\/?\s?Time"?\s*,/i.test(head) || /"GroupName"/i.test(head)){
+    const ibb = parseIBB(text, fileName);
+    if(ibb) return ibb;
+  }
+  if(/^\s*Controller Name\s*,/i.test(head)) return parse24(text, fileName);
   const one = parseCsv(text, fileName);
   if(one) return [one];
-  // no header row: the 10 range writes bare data, one file per day
+  // no header row at all: the 10 range writes bare data, one file per day
   if(looksLikeTenRange(text)){
     const ten = parse10(text, fileName);
     if(ten) return [ten];
   }
   return null;
+}
+
+/* the HMI event log covers months the trace does not, so it is kept aside and
+   folded into whichever days actually have readings */
+let EVLOG = {events:[], settings:[], serial:'', fw:''};
+
+/* The controller stamps an audit entry with 0.0 or 60.0 when the sensors have not
+   been read yet — at boot, or as an alarm is raised. Those are placeholders, not
+   measurements, so check them against the trace and drop the ones that disagree. */
+function eventTemps(day, e){
+  if(e.a===null && e.b===null) return {a:null, b:null};
+  const suspect = (e.a===0 && e.b===0) || (e.a===e.b && e.a>=50);
+  if(!suspect) return {a:e.a, b:e.b};
+  let near=null, bd=Infinity;
+  for(const r of day.rows){
+    if(r.a===null || r.ev) continue;
+    const d=Math.abs(r.m-e.m);
+    if(d<bd){ bd=d; near=r; }
+  }
+  if(near && bd<=10 && Math.abs(near.a-e.a)>2) return {a:null, b:null};
+  if(!near) return {a:null, b:null};
+  return {a:e.a, b:e.b};
+}
+
+function mergeEventLog(){
+  if(!EVLOG.events.length || !DAYS.size) return;
+  for(const e of EVLOG.events){
+    const day=DAYS.get(e.date);
+    if(!day) continue;
+    if(day.rows.some(r=>r.rt===e.name && Math.abs(r.m-e.m)<0.5)) continue;
+    /* a and b stay null so an audit entry never counts as a reading */
+    const rd = eventTemps(day, e);
+    day.rows.push({m:e.m, a:null, b:null, e:null, d:0, c:0,
+                   x:/alarm/i.test(e.name)?1:0, p:/mains fail|power/i.test(e.name)?1:0,
+                   rt:e.name, ev:1, ra:rd.a, rb:rd.b});
+    day._w=null; day._fk=null;
+  }
+  for(const day of DAYS.values()) day.rows.sort((x,y)=>x.m-y.m);
 }
 
 async function ingest(files){
@@ -910,13 +1254,22 @@ async function ingest(files){
     else META.customer = titleCase(top);
   }
 
-  let ok=0, bad=0, dayCount=0, emptyFiles=0, truncated=0;
+  let ok=0, bad=0, dayCount=0, logs=0;
   const texts = await Promise.all(csvs.map(f=>f.text().catch(()=>null)));
   texts.forEach((tx,i)=>{
     if(!tx){ bad++; return; }
     if(!tx.trim()){ emptyFiles++; return; }   // a day the logger wrote nothing to
     let list=null;
     try{ list = parseFile(tx, csvs[i].name); }catch(e){ list=null; }
+    /* an HMI event log is an audit trail, not a trace — hold it until every file is in */
+    if(list && list.kind==='evlog'){
+      ok++; logs++;
+      EVLOG.events.push(...list.events);
+      EVLOG.settings.push(...list.settings);
+      if(list.serial) EVLOG.serial=list.serial;
+      if(list.fw)     EVLOG.fw=list.fw;
+      return;
+    }
     if(!list || !list.length){ bad++; return; }
     ok++;
     for(const d of list){
@@ -947,11 +1300,13 @@ async function ingest(files){
   });
 
   if(!ok){ toast('Those files were not readable as Labcold logs.'); return; }
-  // Say plainly what was left out. A reading the controller wrote without its
-  // leading digit cannot be recovered, and silently plotting it as 0.x would
-  // invent a temperature excursion.
+  mergeEventLog();
+  // Say plainly what was left out. A 10-range reading the controller wrote
+  // without its leading digit cannot be recovered, and plotting it as 0.x
+  // would invent a temperature excursion.
   const notes = [];
-  if(bad) notes.push(bad+' unreadable');
+  if(logs) notes.push(logs+' event log'+(logs===1?'':'s'));
+  if(bad) notes.push(bad+' skipped');
   if(emptyFiles) notes.push(emptyFiles+' empty');
   if(truncated) notes.push(truncated+' reading'+(truncated===1?'':'s')+' incomplete in the log and left out');
   toast(dayCount+' day'+(dayCount===1?'':'s')+' loaded'+(notes.length?' · '+notes.join(' · '):''));
@@ -976,26 +1331,45 @@ function dayWeights(day){
   return w;
 }
 
+/* A blood bank fridge holds the load probe to a tighter band than the air probe,
+   so limits are per channel. Everything else uses one pair for all probes. */
+function limOf(lim, key){
+  return (lim.dual && key==='b') ? {lo:lim.loadLo, hi:lim.loadHi} : {lo:lim.lo, hi:lim.hi};
+}
+function limSpan(lim){
+  return lim.dual
+    ? {lo:Math.min(lim.lo,lim.loadLo), hi:Math.max(lim.hi,lim.loadHi)}
+    : {lo:lim.lo, hi:lim.hi};
+}
+function limText(lim){
+  return lim.dual
+    ? 'air '+t1(lim.lo)+' to '+t1(lim.hi)+' °C, load '+t1(lim.loadLo)+' to '+t1(lim.loadHi)+' °C'
+    : t1(lim.lo)+' to '+t1(lim.hi)+' °C';
+}
+
 function dayStats(day, lim){
   const W = dayWeights(day);
   let mn=Infinity, mx=-Infinity, sum=0, n=0, mkt=0;
-  let out=0, tot=0, comp=0, doors=0, prevDoor=0;
-  const useA = lim.chan==='both'||lim.chan==='1', useB = lim.chan==='both'||lim.chan==='2', useE = lim.chan==='3';
+  let out=0, tot=0, comp=0, doors=0, prevDoor=0, anyBad=false;
+  const useA = lim.chan==='both'||lim.chan==='all'||lim.chan==='1',
+        useB = lim.chan==='both'||lim.chan==='all'||lim.chan==='2',
+        useE = lim.chan==='all' ||lim.chan==='3';
   for(let i=0;i<day.rows.length;i++){
     const r=day.rows[i], w=W[i];
     const vals=[];
-    if(useA && r.a!==null) vals.push(r.a);
-    if(useB && r.b!==null) vals.push(r.b);
-    if(useE && r.e!==null && r.e!==undefined) vals.push(r.e);
+    if(useA && r.a!==null) vals.push([r.a,'a']);
+    if(useB && r.b!==null) vals.push([r.b,'b']);
+    if(useE && r.e!==null && r.e!==undefined) vals.push([r.e,'e']);
     let bad=false;
-    for(const v of vals){
+    for(const [v,k] of vals){
       if(v<mn) mn=v; if(v>mx) mx=v;
       sum+=v; n++;
       mkt += Math.exp(-10000/(v+273.15));
-      if(v<lim.lo || v>lim.hi) bad=true;
+      const cl=limOf(lim,k);
+      if(v<cl.lo || v>cl.hi) bad=true;
     }
     tot+=w;
-    if(bad) out+=w;
+    if(bad){ out+=w; anyBad=true; }
     if(r.c) comp+=w;
     if(r.d && !prevDoor) doors++;
     prevDoor = r.d;
@@ -1005,7 +1379,7 @@ function dayStats(day, lim){
     mean: n?sum/n:null,
     mkt: n? (-10000/Math.log(mkt/n))-273.15 : null,
     outMin: Math.round(out), total: Math.round(tot), samples: day.rows.length,
-    doors, compPct: tot?comp/tot*100:0,
+    doors, compPct: tot?comp/tot*100:0, bad: anyBad,
     inPct: tot? (tot-out)/tot*100 : 0
   };
 }
@@ -1018,23 +1392,24 @@ function evLen(e){ return (e.end - e.start) + ivOf(e.date); }
 function findExcursions(days, lim){
   const list=[];
   const chans=[];
-  if(lim.chan==='both'||lim.chan==='1') chans.push({k:'a',lbl:'T1'});
-  if(lim.chan==='both'||lim.chan==='2') chans.push({k:'b',lbl:'T2'});
-  if(lim.chan==='3') chans.push({k:'e',lbl:'T3'});
+  if(lim.chan==='both'||lim.chan==='all'||lim.chan==='1') chans.push({k:'a',lbl:CHL.a});
+  if(lim.chan==='both'||lim.chan==='all'||lim.chan==='2') chans.push({k:'b',lbl:CHL.b});
+  if(lim.chan==='all' ||lim.chan==='3') chans.push({k:'e',lbl:CHL.e});
   for(const ch of chans){
+    const cl=limOf(lim, ch.k);
     let cur=null;
     for(const day of days){
       for(const r of day.rows){
         const v = r[ch.k];
-        const bad = v!==null && (v<lim.lo || v>lim.hi);
+        const bad = v!==null && v!==undefined && (v<cl.lo || v>cl.hi);
         if(bad){
-          const side = v>lim.hi ? 'High':'Low';
-          if(cur && cur.side===side && cur.date===day.date){
+          const side = v>cl.hi ? 'High':'Low';
+          if(cur && cur.side===side && cur.date===day.date && cur.k===ch.k){
             cur.end=r.m; cur.n++;
             if(side==='High'){ if(v>cur.peak) cur.peak=v; } else { if(v<cur.peak) cur.peak=v; }
           }else{
             if(cur) list.push(cur);
-            cur={ch:ch.lbl, date:day.date, start:r.m, end:r.m, peak:v, side:side, n:1};
+            cur={ch:ch.lbl, k:ch.k, date:day.date, start:r.m, end:r.m, peak:v, side:side, n:1};
           }
         }else if(cur){ list.push(cur); cur=null; }
       }
@@ -1104,7 +1479,7 @@ const FAULT = {
 function tempOf(r){ return r.a!==null ? r.a : r.b; }
 
 function dayFaults(day, lim){
-  const ck = lim.lo+'|'+lim.hi;
+  const ck = lim.lo+'|'+lim.hi+'|'+(lim.dual?lim.loadLo+'|'+lim.loadHi:'');
   if(day._fk===ck) return day._faults;
 
   const idx=new Map();
@@ -1226,7 +1601,7 @@ function render(){
   const autoTitle = (META.customer || 'Temperature record') + (META.job ? '  ·  Job '+META.job : '');
   if(document.activeElement !== $('#jobName')) $('#jobName').textContent = META.title || autoTitle;
   $('#phTitle').textContent = META.title || autoTitle;
-  $('#phDate').textContent  = 'Limits '+t1(lim.lo)+' to '+t1(lim.hi)+' °C · printed '+fmtDate(iso(new Date()));
+  $('#phDate').textContent  = 'Limits '+limText(lim)+' · printed '+fmtDate(iso(new Date()));
 
   const single = v.from===v.to;
   $('#rangeLbl').innerHTML = single
@@ -1249,11 +1624,12 @@ function render(){
   }
   $('#verdictTxt').textContent = clean
     ? 'In range for the whole period — no excursion longer than '+Math.max(1,lim.minDur|0)+' min'
-    : v.exc.length+' excursion'+(v.exc.length===1?'':'s')+' outside '+t1(lim.lo)+' to '+t1(lim.hi)+' °C, '+dur(v.excMin)+' in total';
+    : v.exc.length+' excursion'+(v.exc.length===1?'':'s')+' outside '+limText(lim)+', '+dur(v.excMin)+' in total';
   return renderRest();
 
   function renderRest(){
-  const cls = x => (x===null?'':(x<lim.lo||x>lim.hi)?'bad':'ok');
+  const LS = limSpan(lim);
+  const cls = x => (x===null?'':(x<LS.lo||x>LS.hi)?'bad':'ok');
   $('#stats').innerHTML = [
     st('Minimum', t1(v.min), '°C', cls(v.min)),
     st('Maximum', t1(v.max), '°C', cls(v.max)),
@@ -1262,11 +1638,15 @@ function render(){
     st('Time in range', pctTxt(v.inPct, v.outMin), '%', v.outMin===0?'ok':(v.inPct>=99?'warn':'bad')),
     st('Time out',  v.outMin?dur(v.outMin):'0 min','', v.outMin?'bad':'ok'),
     st('Door openings', v.days.some(d=>d.hasDoor!==false)? String(v.doors) : '—', '', ''),
-    st('Compressor duty', v.compPct.toFixed(0), '%', '')
+    st('Compressor duty', v.days.some(d=>d.hasComp!==false)? v.compPct.toFixed(0) : '—',
+       v.days.some(d=>d.hasComp!==false)? '%' : '', '')
   ].join('');
 
+  renderInstrument();
   renderMixed();
+  renderClock();
   renderPower();
+  updateDayNav();
   renderAlert();
   renderFaults();
   renderRtEvents();
@@ -1336,6 +1716,25 @@ function renderMixed(){
 }
 
 /* mains and battery warnings are worth an engineer's attention on their own */
+/* a power cut can restart the controller clock, so part of a day is logged twice */
+function renderClock(){
+  const card=$('#clkCard');
+  const days=[...DAYS.keys()].sort().filter(k=>(DAYS.get(k).clockResets||[]).length);
+  if(!days.length){ card.hidden=true; return; }
+  card.hidden=false;
+  const first=DAYS.get(days[0]).clockResets[0];
+  let n=0; for(const k of days) n+=DAYS.get(k).clockResets.length;
+  $('#clkTitle').textContent = 'Controller clock restarted — part of the day is logged twice';
+  $('#clkBody').innerHTML =
+    'The log jumps backwards in time on <b>'+days.length+'</b> day'+(days.length===1?'':'s')+
+    ' ('+n+' restart'+(n===1?'':'s')+'), so the same clock times carry two different sets of readings — '+
+    'on '+fmtDate(days[0])+' the stretch <b>'+hhmm(first.from)+' to '+hhmm(first.to)+'</b> appears twice. '+
+    'Plotted in time order the two passes interleave and the trace zig-zags on every reading. '+
+    'That spiky section is the clock, not the fridge, and any excursion or fault inside it should be read from the raw file before you report it.'+
+    '<div class="dates">'+days.map(d=>'<button data-d="'+d+'">'+fmtDate(d)+'</button>').join('')+'</div>';
+  card.querySelectorAll('.dates button').forEach(b=>b.onclick=()=>selectDay(b.dataset.d));
+}
+
 function renderPower(){
   const card=$('#pwrCard');
   const evs=[];
@@ -1397,27 +1796,69 @@ function st(k,val,u,c){
 }
 
 /* the 24-range export carries event codes with no key — show them, don't guess */
+/* nearest actual reading either side of a moment, if the trace is close enough */
+function traceAt(day, m){
+  const rows=day.rows, tol=Math.max(2, (day.iv||1)*3);
+  let lo=0, hi=rows.length-1, i=0;
+  while(lo<=hi){ const mid=(lo+hi)>>1; if(rows[mid].m<m){ i=mid; lo=mid+1; } else hi=mid-1; }
+  let best=null, bd=Infinity;
+  for(let j=Math.max(0,i-4); j<Math.min(rows.length,i+5); j++){
+    const r=rows[j];
+    if(r.ev || r.a===null) continue;
+    const d=Math.abs(r.m-m);
+    if(d<bd){ bd=d; best=r; }
+  }
+  return (best && bd<=tol) ? {a:best.a, b:best.b} : null;
+}
+
 function renderRtEvents(){
   const card=$('#rtCard'), t=$('#rtTbl');
   const list=[];
-  for(const d of VIEW.days) for(const r of d.rows) if(r.rt) list.push({date:d.date, m:r.m, code:r.rt, a:r.a, b:r.b, e:r.e});
+  for(const d of VIEW.days) for(const r of d.rows){
+    if(!r.rt) continue;
+    let a = (r.a!==null?r.a:(r.ra!==undefined?r.ra:null));
+    let b = (r.b!==null?r.b:(r.rb!==undefined?r.rb:null));
+    let approx=false;
+    /* An event row carries no reading of its own — the door and power messages sit
+       between samples, and a boot entry is stamped before the probes are read. Where
+       the trace covers that moment, show what the fridge was actually doing, marked
+       so nobody mistakes it for a value the controller logged. */
+    if(a===null && b===null){
+      const near=traceAt(d, r.m);
+      if(near){ a=near.a; b=near.b; approx=true; }
+    }
+    list.push({date:d.date, m:r.m, code:r.rt, a, b, e:r.e, approx});
+  }
   if(!list.length){ card.hidden=true; return; }
   card.hidden=false;
   const counts={};
   list.forEach(x=>counts[x.code]=(counts[x.code]||0)+1);
   const CAP=300;
+  const showCode = list.some(x=>/^\[/.test(x.code));
   $('#rtCount').textContent = list.length+' logged · '+Object.keys(counts).length+' distinct';
   const rows=list.slice(0,CAP).map(x=>{
     const ci=codeInfo(x.code);
     return '<tr class="click" data-d="'+x.date+'" data-m="'+x.m+'">'+
       '<td class="txt">'+fmtDate(x.date)+'</td><td>'+hhmm(x.m)+'</td>'+
       '<td class="txt"><span class="pill ev-'+ci.g+'">'+ci.d+'</span></td>'+
-      '<td>'+x.code+'</td>'+
-      '<td>'+t1(x.a)+'</td><td>'+t1(x.b)+'</td>'+
-      '<td>'+(x.e===null||x.e===undefined?'—':t1(x.e))+'</td></tr>';
+      (showCode? '<td>'+x.code+'</td>' : '')+
+      '<td'+(x.approx?' class="approx"':'')+'>'+(x.approx&&x.a!==null?'≈':'')+t1(x.a)+'</td>'+
+      '<td'+(x.approx?' class="approx"':'')+'>'+(x.approx&&x.b!==null?'≈':'')+t1(x.b)+'</td>'+
+      (HAS_T3? '<td>'+(x.e===null||x.e===undefined?'—':t1(x.e))+'</td>' : '')+'</tr>';
   }).join('');
-  const more = list.length>CAP ? '<tr><td colspan="7" class="txt" style="color:var(--txt-3)">Showing the first '+CAP+' of '+list.length.toLocaleString()+'.</td></tr>' : '';
-  t.innerHTML='<thead><tr><th>Date</th><th>Time</th><th>Event</th><th>Code</th><th>T1 °C</th><th>T2 °C</th><th>T3 °C</th></tr></thead><tbody>'+rows+more+'</tbody>';
+  const cols = 4 + (showCode?1:0) + (HAS_T3?1:0);
+  const more = list.length>CAP ? '<tr><td colspan="'+cols+'" class="txt" style="color:var(--txt-3)">Showing the first '+CAP+' of '+list.length.toLocaleString()+'.</td></tr>' : '';
+  t.innerHTML='<thead><tr><th>Date</th><th>Time</th><th>Event</th>'+
+    (showCode?'<th>Code</th>':'')+
+    '<th>'+CHL.a+' °C</th><th>'+CHL.b+' °C</th>'+
+    (HAS_T3?'<th>'+CHL.e+' °C</th>':'')+'</tr></thead><tbody>'+rows+more+'</tbody>';
+  const anyApprox = list.slice(0,CAP).some(x=>x.approx);
+  $('#rtFoot').innerHTML = showCode
+    ? "Tap a row to zoom to it. Codes decoded from the table in Labcold's own CSV Viewer."
+    : 'Tap a row to zoom to it.'+
+      (anyApprox? ' A <b>≈</b> value was not logged with the entry — the controller records no temperature with a door or power message, '+
+                  'and stamps 0.0 or 60.0 before the probes are read. It is the nearest reading from the trace, so it is what the fridge '+
+                  'was doing at that moment rather than what the controller wrote. A dash means the trace does not cover it.' : '');
   t.querySelectorAll('tr.click').forEach(tr=>tr.onclick=()=>{
     selectDay(tr.dataset.d);
     const m=+tr.dataset.m;
@@ -1429,7 +1870,7 @@ function renderExcursions(){
   const v=VIEW, t=$('#excTbl');
   $('#excCount').textContent = v.exc.length ? v.exc.length.toLocaleString()+' logged' : 'none';
   if(!v.exc.length){
-    t.innerHTML='<tbody><tr><td class="empty txt">Nothing outside '+t1(LIMITS.lo)+' to '+t1(LIMITS.hi)+
+    t.innerHTML='<tbody><tr><td class="empty txt">Nothing outside '+limText(LIMITS)+
       ' °C in this period.</td></tr></tbody>';
     return;
   }
@@ -1438,11 +1879,11 @@ function renderExcursions(){
   const rows = shown.map((e,i)=>{
     const len=evLen(e);
     return '<tr class="click" data-i="'+i+'" data-d="'+e.date+'"><td class="txt">'+fmtDate(e.date)+'</td>'+
-      '<td><span class="pill '+(e.ch==='T1'?'t1':e.ch==='T2'?'t2':'t3')+'">'+e.ch+'</span></td>'+
+      '<td><span class="pill '+(e.k==='a'?'t1':e.k==='b'?'t2':'t3')+'">'+e.ch+'</span></td>'+
       '<td><span class="pill '+(e.side==='High'?'bad':'warn')+'">'+e.side+'</span></td>'+
       '<td>'+hhmm(e.start)+'</td><td>'+hhmm(e.end)+'</td>'+
       '<td>'+dur(len)+'</td><td><b>'+t1(e.peak)+' °C</b></td>'+
-      '<td>'+(e.side==='High'? '+'+(e.peak-LIMITS.hi).toFixed(1) : (e.peak-LIMITS.lo).toFixed(1))+'</td></tr>';
+      '<td>'+(e.side==='High'? '+'+(e.peak-limOf(LIMITS,e.k).hi).toFixed(1) : (e.peak-limOf(LIMITS,e.k).lo).toFixed(1))+'</td></tr>';
   }).join('');
   const more = v.exc.length>CAP
     ? '<tr><td colspan="8" class="txt" style="color:var(--txt-3)">Showing the first '+CAP+' of '+
@@ -1466,7 +1907,7 @@ function focusExcursion(i){
 function renderDayTable(){
   const v=VIEW, t=$('#dayTbl');
   const rows = v.per.map(p=>{
-    const s=p.s, bad = s.min<LIMITS.lo || s.max>LIMITS.hi;
+    const s=p.s, bad = s.bad;
     return '<tr class="click" data-d="'+p.date+'"><td class="txt">'+fmtDate(p.date)+'</td>'+
       '<td class="txt">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][fromIso(p.date).getDay()]+'</td>'+
       '<td>'+t1(s.min)+'</td><td>'+t1(s.max)+'</td><td>'+t1(s.mean)+'</td><td>'+t1(s.mkt)+'</td>'+
@@ -1606,10 +2047,11 @@ function drawChart(){
   let lo, hi;
   if(ZOOM && dLo!==Infinity){
     lo=dLo; hi=dHi;
-    if(SHOW.band){ lo=Math.min(lo,lim.lo); hi=Math.max(hi,lim.hi); }
+    if(SHOW.band){ const B=limSpan(lim); lo=Math.min(lo,B.lo); hi=Math.max(hi,B.hi); }
   }else{
-    lo = Math.min(v.min!==null?v.min:lim.lo, lim.lo);
-    hi = Math.max(v.max!==null?v.max:lim.hi, lim.hi);
+    const B=limSpan(lim);
+    lo = Math.min(v.min!==null?v.min:B.lo, B.lo);
+    hi = Math.max(v.max!==null?v.max:B.hi, B.hi);
   }
   if(META.setpoint!==null){ lo=Math.min(lo,META.setpoint); hi=Math.max(hi,META.setpoint); }
   if(hi-lo < 0.5){ const c=(hi+lo)/2; lo=c-0.25; hi=c+0.25; }
@@ -1629,6 +2071,14 @@ function drawChart(){
       if(t<lo||t>hi) return;
       cx.beginPath(); cx.moveTo(pad.l,Y(t)+.5); cx.lineTo(W-pad.r,Y(t)+.5); cx.stroke();
     });
+    /* the load probe is held tighter, so mark its band in the load colour */
+    if(lim.dual){
+      cx.strokeStyle='rgba(128,70,192,.5)'; cx.setLineDash([2,3]);
+      [lim.loadLo,lim.loadHi].forEach(t=>{
+        if(t<lo||t>hi) return;
+        cx.beginPath(); cx.moveTo(pad.l,Y(t)+.5); cx.lineTo(W-pad.r,Y(t)+.5); cx.stroke();
+      });
+    }
     cx.setLineDash([]);
   }
 
@@ -1752,7 +2202,7 @@ function drawChart(){
   const shownReadings = ZOOM ? countVisible() : v.samples;
   const ivs=[...new Set(v.days.map(d=>d.iv||1))];
   $('#resLbl').textContent = shownReadings.toLocaleString()+' readings · '+
-    (ivs.length===1? ivs[0]+' min interval' : 'mixed interval');
+    (ivs.length===1? ivFmt(ivs[0])+' interval' : 'mixed interval');
 
   function countVisible(){
     let n=0;
@@ -1850,6 +2300,11 @@ function hexA(c, a){
   if(m){ const p=m[1].split(',').map(s=>s.trim()); return 'rgba('+p[0]+','+p[1]+','+p[2]+','+a+')'; }
   return 'rgba(100,120,140,'+a+')';
 }
+/* the blood bank recorder samples faster than once a minute */
+function ivFmt(iv){
+  if(iv>=1) return (Math.round(iv*10)/10)+' min';
+  return Math.round(iv*60)+' sec';
+}
 function niceStep(raw){
   const p=Math.pow(10,Math.floor(Math.log10(Math.max(raw,1e-6))));
   const n=raw/p;
@@ -1889,11 +2344,11 @@ function readout(clientX, clientY){
     cx.strokeStyle='#fff'; cx.lineWidth=1.5; cx.stroke();
   });
 
-  const out = val => val!==null && (val<LIMITS.lo||val>LIMITS.hi);
+  const out = (val,k) => { if(val===null||val===undefined) return false; const c=limOf(LIMITS,k); return val<c.lo||val>c.hi; };
   tip.innerHTML = '<b>'+fmtDate(key)+' '+hhmm(best.m)+'</b>'+
-    (SHOW.t1&&best.a!==null?'<br>T1 '+t1(best.a)+' °C'+(out(best.a)?' ⚠':''):'')+
-    (SHOW.t2&&best.b!==null?'<br>T2 '+t1(best.b)+' °C'+(out(best.b)?' ⚠':''):'')+
-    (SHOW.t3&&best.e!==null&&best.e!==undefined?'<br>T3 '+t1(best.e)+' °C':'')+
+    (SHOW.t1&&best.a!==null?'<br>'+CHL.a+' '+t1(best.a)+' °C'+(out(best.a,'a')?' ⚠':''):'')+
+    (SHOW.t2&&best.b!==null?'<br>'+CHL.b+' '+t1(best.b)+' °C'+(out(best.b,'b')?' ⚠':''):'')+
+    (SHOW.t3&&best.e!==null&&best.e!==undefined?'<br>'+CHL.e+' '+t1(best.e)+' °C':'')+
     (best.rt?'<br>'+codeInfo(best.rt).d:'')+
     (best.d?'<br>Door open':'')+(best.c?'<br>Compressor on':'')+(best.p?'<br>Power lost':'');
   tip.style.opacity=1;
@@ -2051,12 +2506,14 @@ function onDayTap(key){
     }
   }
   render();
+  if(SEL.mode==='day' || !SEL.anchor) closePanel();   /* range needs both taps first */
 }
 function selectDay(key){
   SEL.mode='day'; SEL.from=SEL.to=key; SEL.anchor=null;
   $$('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode==='day'));
   CAL.ym=key.slice(0,7);
   render();
+  closePanel();
   document.querySelector('#sumCard').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
@@ -2067,8 +2524,9 @@ function markCalendar(){
     el.classList.remove('sel','inr','s-warn','s-bad','fault');
     const fl=dayFaults(d,LIMITS).filter(e=>e.kind==='cool');
     if(fl.length) el.classList.add('fault');
-    const bad = s.min<LIMITS.lo || s.max>LIMITS.hi;
-    const near = !bad && (s.min < LIMITS.lo+0.5 || s.max > LIMITS.hi-0.5);
+    const bad = s.bad;
+    const LS = limSpan(LIMITS);
+    const near = !bad && (s.min < LS.lo+0.5 || s.max > LS.hi-0.5);
     if(bad) el.classList.add('s-bad'); else if(near) el.classList.add('s-warn');
     if(VIEW){
       if(k===VIEW.from||k===VIEW.to) el.classList.add('sel');
@@ -2112,12 +2570,13 @@ function exportCsv(){
   L.push(['Labcold temperature record'].map(q).join(','));
   L.push(['Customer',META.title||META.customer,'Job',META.job].map(q).join(','));
   L.push(['Controller PN',META.pn,'Unit type',META.unit,'Firmware',META.fw].map(q).join(','));
-  L.push(['Set point',META.setpoint===null?'':META.setpoint,'Low limit',LIMITS.lo,'High limit',LIMITS.hi].map(q).join(','));
+  L.push(['Set point',META.setpoint===null?'':META.setpoint,'Low limit',LIMITS.lo,'High limit',LIMITS.hi]
+         .concat(LIMITS.dual?['Load low limit',LIMITS.loadLo,'Load high limit',LIMITS.loadHi]:[]).map(q).join(','));
   L.push(['Period',fmtDate(v.from)+' to '+fmtDate(v.to),'Readings',v.totMin].map(q).join(','));
   L.push('');
   L.push(['Date','Min C','Max C','Mean C','MKT C','In range %','Minutes out','Door openings','Compressor %','Result'].map(q).join(','));
   v.per.forEach(p=>{
-    const s=p.s, bad=s.min<LIMITS.lo||s.max>LIMITS.hi;
+    const s=p.s, bad=s.bad;
     L.push([fmtDate(p.date),t1(s.min),t1(s.max),t1(s.mean),t1(s.mkt),s.inPct.toFixed(1),s.outMin,s.doors,s.compPct.toFixed(0),bad?'Out of range':'In range'].map(q).join(','));
   });
   L.push('');
@@ -2138,12 +2597,12 @@ function exportCsv(){
   if(window.LabCalSave){
     // On iPad this opens the iOS share sheet so the folder can be chosen.
     LabCalSave.deliver(blob,name).then(how=>toast(how==='bar'?'Summary ready — choose Save / Share below':'Summary exported'));
-  }else{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob); a.download=name; a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    toast('Summary exported');
+    return;
   }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Summary exported');
 }
 function fileStem(){
   const v=VIEW;
@@ -2165,12 +2624,24 @@ function afterLoad(){
   $('#btnClear').hidden=false;
 
   /* a third probe only exists on some models */
+  /* only the 24 range takes a third probe — never offer it on a 19 range or an IBB */
   HAS_T3=false;
-  for(const d of DAYS.values()){ if(d.rows.some(r=>r.e!==null&&r.e!==undefined)){ HAS_T3=true; break; } }
+  if(META.range==='24')
+    for(const d of DAYS.values()){ if(d.rows.some(r=>r.e!==null&&r.e!==undefined)){ HAS_T3=true; break; } }
   $('.chip[data-s="t3"]').hidden = !HAS_T3;
   $('#t3Legend').hidden = !HAS_T3;
   $('#chan').querySelector('option[value="3"]').hidden = !HAS_T3;
-  if(!HAS_T3 && LIMITS.chan==='3'){ LIMITS.chan='both'; $('#chan').value='both'; }
+  $('#chan').querySelector('option[value="all"]').hidden = !HAS_T3;
+  if(!HAS_T3 && (LIMITS.chan==='3'||LIMITS.chan==='all')){ LIMITS.chan='both'; $('#chan').value='both'; }
+  /* a 24-range unit with a third probe should assess all three until told otherwise */
+  if(HAS_T3 && !LIMITS._userChan && LIMITS.chan==='both'){ LIMITS.chan='all'; $('#chan').value='all'; }
+
+  /* the blood bank recorder has no compressor feedback */
+  const anyComp=[...DAYS.values()].some(d=>d.hasComp!==false);
+  const compChip=$('.chip[data-s="comp"]');
+  compChip.disabled=!anyComp;
+  compChip.title = anyComp? '' : 'This recorder does not log the compressor';
+  if(!anyComp){ SHOW.comp=false; compChip.classList.remove('on'); }
 
   /* not every controller logs the door */
   const anyDoor=[...DAYS.values()].some(d=>d.hasDoor!==false);
@@ -2186,11 +2657,51 @@ function afterLoad(){
   if(!anyT2){
     SHOW.t2=false; chipT2.classList.remove('on'); chipT2.disabled=true;
     chipT2.title='This controller does not log a T2 probe';
-    if(LIMITS.chan!=='1'){ LIMITS.chan='1'; LIMITS._autoChan=true; $('#chan').value='1'; }
+    /* with a third probe fitted, 'all' already ignores the empty T2 — leave it alone */
+    if(!HAS_T3 && LIMITS.chan!=='1'){ LIMITS.chan='1'; LIMITS._autoChan=true; $('#chan').value='1'; }
   }else{
     chipT2.disabled=false; chipT2.title='';
-    if(LIMITS._autoChan){ LIMITS.chan='both'; LIMITS._autoChan=false; $('#chan').value='both'; }
+    if(LIMITS._autoChan){
+      LIMITS.chan = (HAS_T3 && !LIMITS._userChan) ? 'all' : 'both';
+      LIMITS._autoChan=false; $('#chan').value=LIMITS.chan;
+    }
   }
+  $('#chan').value = LIMITS.chan;   /* keep the dropdown in step with what is actually assessed */
+  /* ---- blood bank recorder: Air and Load probes, each with its own band ---- */
+  const isIBB = META.range==='IBB';
+  CHL = isIBB ? {a:'Air', b:'Load', e:'T3'} : {a:'T1', b:'T2', e:'T3'};
+  $('#labT1').textContent = isIBB ? 'Air probe' : 'T1 air';
+  $('#labT2').textContent = isIBB ? 'Load probe' : 'T2 load';
+  $('#legT1').textContent = isIBB ? 'Air probe' : 'T1 air sensor';
+  $('#legT2').textContent = isIBB ? 'Load probe (blood bag)' : 'T2 load / bottle sensor';
+  LIMITS.dual = isIBB;
+  $('#fLoadLo').hidden = !isIBB;
+  $('#fLoadHi').hidden = !isIBB;
+  $('#labLo').textContent = isIBB ? 'Air low °C'  : 'Low limit °C';
+  $('#labHi').textContent = isIBB ? 'Air high °C' : 'High limit °C';
+  const cs=$('#chan');
+  cs.querySelector('option[value="both"]').textContent = isIBB ? 'Air and Load' : 'T1 and T2';
+  cs.querySelector('option[value="1"]').textContent    = isIBB ? 'Air only'     : 'T1 only';
+  cs.querySelector('option[value="2"]').textContent    = isIBB ? 'Load only'    : 'T2 only';
+  if(isIBB){
+    /* the HMI event log states what the unit is actually configured to */
+    if(!afterLoad._ibbCfg){
+      const cfg = limitsFromSettings(EVLOG.settings);
+      LIMITS.lo = (cfg.air.lo!==null) ? cfg.air.lo : 2;
+      LIMITS.hi = (cfg.air.hi!==null) ? cfg.air.hi : 8;
+      LIMITS.loadLo = (cfg.load.lo!==null) ? cfg.load.lo : 2;
+      LIMITS.loadHi = (cfg.load.hi!==null) ? cfg.load.hi : 6;
+      META.product = cfg.product || 'Blood Bank Refrigerator';
+      afterLoad._ibbCfg=true; afterLoad._done=true;
+    }
+    if(EVLOG.serial) META.pn = EVLOG.serial;
+    if(EVLOG.fw)     META.fw = EVLOG.fw;
+    $('#lo').value=LIMITS.lo; $('#hi').value=LIMITS.hi;
+    $('#loadLo').value=LIMITS.loadLo; $('#loadHi').value=LIMITS.loadHi;
+  }
+  $('#preset').querySelector('option[value="ibb"]').hidden = !isIBB;
+  $('#preset').value = matchPreset();
+
   $('#loadHint').innerHTML = DAYS.size+' day'+(DAYS.size===1?'':'s')+' in memory, '+
     fmtDate(keys[0])+' to '+fmtDate(keys[keys.length-1])+'. Load another folder to add more.';
 
@@ -2216,32 +2727,43 @@ function afterLoad(){
   }
   afterLoad._done=true;
 
-  const rangeName = META.range==='24' ? '24 Range' : META.range==='19' ? '19 Range' : META.range==='10' ? '10 Range' : '';
+  const rangeName = META.range==='24' ? '24 Range' : META.range==='19' ? '19 Range'
+                  : META.range==='IBB' ? 'IBB Blood Bank' : '';
   const badge=$('#rangeBadge'), tag=$('#rangeTag');
   if(rangeName){
     badge.hidden=false; badge.textContent=rangeName;
     tag.hidden=false;   tag.textContent=rangeName;
   }else{ badge.hidden=true; tag.hidden=true; }
 
-  $('#instBody').innerHTML =
-    row('Customer', META.customer||'—') + row('Job', META.job||'—') +
-    row('Controller', rangeName||'—') +
-    (META.controller? row('Name', META.controller):'') +
-    row(META.range==='24'?'Fridge type':'Unit type', META.unit||'—') +
-    row(META.range==='24'?'Serial number':'Controller PN', META.pn||'—') +
-    (META.fw? row('Firmware', META.fw):'') +
-    row('Set point', META.setpoint===null?'—':t1(META.setpoint)+' °C') +
-    (META.fileLimits? row('Alarm limits', t1(META.fileLimits.lo)+' to '+t1(META.fileLimits.hi)+' °C'):'');
+  renderInstrument();
 
   buildCalendar();
   if(!SEL.from){ SEL.from=SEL.to=keys[keys.length-1]; }
   render();
+}
 
-  function row(k,v){
-    return '<div style="display:flex;gap:10px;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line-2)">'+
+/* redrawn on every refresh so the stated limits always match what is being assessed */
+function renderInstrument(){
+  const body=$('#instBody');
+  if(!body || !DAYS.size) return;
+  const row=(k,v)=>'<div style="display:flex;gap:10px;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line-2)">'+
       '<span style="font-size:11.5px;color:var(--txt-2)">'+k+'</span>'+
       '<span class="mono" style="font-size:12px;text-align:right;word-break:break-all">'+v+'</span></div>';
-  }
+  const rangeName = META.range==='24' ? '24 Range' : META.range==='19' ? '19 Range'
+                  : META.range==='IBB' ? 'IBB Blood Bank' : '';
+  body.innerHTML =
+    row('Customer', META.customer||'—') + row('Job', META.job||'—') +
+    row('Controller', rangeName||'—') +
+    (META.controller? row('Name', META.controller):'') +
+    (META.product? row('Product', META.product):'') +
+    row(META.range==='24'?'Fridge type':'Unit type', META.unit||'—') +
+    row(META.range==='24'||META.range==='IBB'?'Serial number':'Controller PN', META.pn||'—') +
+    (META.fw? row('Firmware', META.fw):'') +
+    (META.range!=='IBB'? row('Set point', META.setpoint===null?'—':t1(META.setpoint)+' °C'):'') +
+    (LIMITS.dual
+      ? row('Air limits', t1(LIMITS.lo)+' to '+t1(LIMITS.hi)+' °C') +
+        row('Load limits', t1(LIMITS.loadLo)+' to '+t1(LIMITS.loadHi)+' °C')
+      : row('Alarm limits', t1(LIMITS.lo)+' to '+t1(LIMITS.hi)+' °C'));
 }
 
 /* file inputs */
@@ -2295,32 +2817,52 @@ $$('.quick button').forEach(b=>b.onclick=()=>{
   else { SEL.from=keys[0]; SEL.to=last; }
   SEL.mode = SEL.from===SEL.to?'day':'range';
   $$('#modeSeg button').forEach(x=>x.classList.toggle('on', x.dataset.mode===SEL.mode));
-  SEL.anchor=null; render();
+  SEL.anchor=null; render(); closePanel();
 });
 
 /* limits */
 function readLimits(){
   const lo=parseFloat($('#lo').value), hi=parseFloat($('#hi').value);
   if(isFinite(lo)&&isFinite(hi)&&hi>lo){ LIMITS.lo=lo; LIMITS.hi=hi; }
+  if(LIMITS.dual){
+    const llo=parseFloat($('#loadLo').value), lhi=parseFloat($('#loadHi').value);
+    if(isFinite(llo)&&isFinite(lhi)&&lhi>llo){ LIMITS.loadLo=llo; LIMITS.loadHi=lhi; }
+  }
   const md=parseInt($('#minDur').value,10); LIMITS.minDur=isFinite(md)?Math.max(0,md):1;
-  LIMITS.chan=$('#chan').value; LIMITS._autoChan=false;
+  const ch=$('#chan').value;
+  if(ch!==LIMITS.chan) LIMITS._userChan=true;
+  LIMITS.chan=ch; LIMITS._autoChan=false;
+  $('#preset').value = matchPreset();
   store.set('limits',LIMITS);
   if(DAYS.size) render();
 }
-['lo','hi','minDur','chan'].forEach(id=>{
+['lo','hi','minDur','chan','loadLo','loadHi'].forEach(id=>{
   const el=$('#'+id);
   el.addEventListener('change',readLimits);
   el.addEventListener('input',()=>{ clearTimeout(readLimits._t); readLimits._t=setTimeout(readLimits,260); });
 });
 $('#preset').addEventListener('change',e=>{
   if(e.target.value==='custom') return;
+  if(e.target.value==='ibb'){
+    $('#lo').value=2; $('#hi').value=8;
+    $('#loadLo').value=2; $('#loadHi').value=6;
+    readLimits(); return;
+  }
   const [lo,hi]=e.target.value.split(',').map(Number);
   $('#lo').value=lo; $('#hi').value=hi; readLimits();
 });
 ['lo','hi'].forEach(id=>$('#'+id).addEventListener('change',()=>{
-  const opt=[...$('#preset').options].find(o=>o.value===$('#lo').value+','+$('#hi').value);
-  $('#preset').value = opt?opt.value:'custom';
+  $('#preset').value = matchPreset();
 }));
+
+/* which preset, if any, describes the bands currently in force */
+function matchPreset(){
+  if(LIMITS.dual){
+    return (LIMITS.lo===2&&LIMITS.hi===8&&LIMITS.loadLo===2&&LIMITS.loadHi===6) ? 'ibb' : 'custom';
+  }
+  const o=[...$('#preset').options].find(x=>x.value===LIMITS.lo+','+LIMITS.hi);
+  return o?o.value:'custom';
+}
 
 /* series toggles */
 $$('.chart-top .chip').forEach(b=>b.onclick=()=>{
@@ -2333,11 +2875,21 @@ $('#btnClear').onclick = ()=>{
   if(!confirm('Clear all '+DAYS.size+' loaded days and start a new customer?\n\nNothing is saved — you would need to load the folder again.')) return;
   DAYS.clear();
   META = {job:'', customer:'', unit:'', fw:'', pn:'', setpoint:null, title:'',
-          range:'', controller:'', fileLimits:null};
+          range:'', controller:'', fileLimits:null, product:''};
+  EVLOG = {events:[], settings:[], serial:'', fw:''};
+  CHL  = {a:'T1', b:'T2', e:'T3'};
+  LIMITS.dual=false; $('#fLoadLo').hidden=true; $('#fLoadHi').hidden=true;
+  $('#preset').querySelector('option[value="ibb"]').hidden=true;
+  $('#chan').querySelector('option[value="both"]').textContent='T1 and T2';
+  $('#chan').querySelector('option[value="1"]').textContent='T1 only';
+  $('#chan').querySelector('option[value="2"]').textContent='T2 only';
+  $('#labLo').textContent='Low limit °C'; $('#labHi').textContent='High limit °C';
+  $('#labT1').textContent='T1 air'; $('#labT2').textContent='T2 load';
+  $('#legT1').textContent='T1 air sensor'; $('#legT2').textContent='T2 load / bottle sensor';
   SEL  = {mode:'day', from:null, to:null, anchor:null};
   CAL  = {ym:null};
   VIEW = null; ZOOM = null; PLOT = null;
-  render._range = null; afterLoad._done = false;
+  render._range = null; afterLoad._done = false; afterLoad._ibbCfg = false;
   document.body.classList.remove('loaded');
   $('#welcome').hidden = false;
   ['calCard','limCard','instCard','sumCard','chartCard','excCard','dayCard','alertCard','faultCard']
@@ -2351,8 +2903,11 @@ $('#btnClear').onclick = ()=>{
   $('#rangeBadge').hidden=true; $('#rangeTag').hidden=true;
   $('.chip[data-s="t3"]').hidden=true; $('#t3Legend').hidden=true;
   $('#chan').querySelector('option[value="3"]').hidden=true;
+  $('#chan').querySelector('option[value="all"]').hidden=true;
+  if(LIMITS.chan==='all'||LIMITS.chan==='3'){ LIMITS.chan='both'; $('#chan').value='both'; }
   HAS_T3=false;
   $$('.chart-top .chip').forEach(b=>{ b.disabled=false; b.title=''; });
+  $('.chip[data-s="comp"]').classList.remove('on'); SHOW.comp=false;
   SHOW.t2 = true; $('.chip[data-s="t2"]').classList.add('on');
   if(LIMITS._autoChan){ LIMITS.chan='both'; LIMITS._autoChan=false; $('#chan').value='both'; }
   $('#loadHint').innerHTML='Reads Labcold controller logs (<span class="mono">YYMMDD.CSV</span>) from the monthly folders. Everything stays on this device — nothing is uploaded.';
@@ -2372,6 +2927,55 @@ jobEl.addEventListener('paste',e=>{
   document.execCommand('insertText', false, (e.clipboardData||window.clipboardData).getData('text'));
 });
 
+/* ---------- slide-over controls panel (tablet and phone) ---------- */
+/* matchMedia and its addEventListener are missing on older WebKit, so fall back */
+const panelQ = window.matchMedia ? window.matchMedia('(max-width:1100px)') : null;
+function narrowScreen(){ return panelQ ? panelQ.matches : window.innerWidth<=1100; }
+function panelMode(){ return narrowScreen() && document.body.classList.contains('loaded'); }
+function openPanel(){ if(panelMode()) document.body.classList.add('panel'); }
+function closePanel(){ document.body.classList.remove('panel'); }
+function togglePanel(){ document.body.classList.contains('panel') ? closePanel() : openPanel(); }
+$('#btnPanel').onclick = togglePanel;
+$('#btnPanelClose').onclick = closePanel;
+$('#scrim').onclick = closePanel;
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePanel(); });
+const onWide = ()=>{ if(!narrowScreen()) closePanel(); };
+if(panelQ && panelQ.addEventListener) panelQ.addEventListener('change', onWide);
+else if(panelQ && panelQ.addListener) panelQ.addListener(onWide);
+else window.addEventListener('resize', onWide);
+
+/* ---------- step through the loaded days without opening the panel ---------- */
+function updateDayNav(){
+  const nav=$('#dayNav'); if(!nav) return;
+  const keys=[...DAYS.keys()].sort();
+  const single = !!VIEW && VIEW.from===VIEW.to;
+  nav.hidden = keys.length<2;
+  const i = single ? keys.indexOf(VIEW.from) : -1;
+  $('#dPrev').disabled = !single || i<=0;
+  $('#dNext').disabled = !single || i<0 || i>=keys.length-1;
+  $('#dPrev').title = (!single) ? 'Switch to a single day to step' : 'Previous day';
+  $('#dNext').title = (!single) ? 'Switch to a single day to step' : 'Next day';
+}
+function stepDay(step){
+  if(!VIEW || VIEW.from!==VIEW.to) return;
+  const keys=[...DAYS.keys()].sort();
+  const i=keys.indexOf(VIEW.from)+step;
+  if(i<0 || i>=keys.length) return;
+  SEL.mode='day'; SEL.from=SEL.to=keys[i]; SEL.anchor=null;
+  $$('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.mode==='day'));
+  render();
+}
+$('#dPrev').onclick=()=>stepDay(-1);
+$('#dNext').onclick=()=>stepDay(1);
+document.addEventListener('keydown', e=>{
+  if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
+  const a=document.activeElement;
+  if(a && (a.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))) return;
+  if(!DAYS.size) return;
+  e.preventDefault();
+  stepDay(e.key==='ArrowLeft' ? -1 : 1);
+});
+
 /* toolbar */
 $('#btnPng').onclick=savePng;
 $('#btnCsv').onclick=exportCsv;
@@ -2380,7 +2984,9 @@ $('#btnPrint').onclick=()=>window.print();
 /* restore preferences */
 (function init(){
   const L=store.get('limits',null);
-  if(L){ Object.assign(LIMITS,L); $('#lo').value=LIMITS.lo; $('#hi').value=LIMITS.hi;
+  if(L){ Object.assign(LIMITS,L); LIMITS.dual=false;
+         $('#lo').value=LIMITS.lo; $('#hi').value=LIMITS.hi;
+         $('#loadLo').value=LIMITS.loadLo; $('#loadHi').value=LIMITS.loadHi;
          $('#minDur').value=LIMITS.minDur; $('#chan').value=LIMITS.chan;
          const opt=[...$('#preset').options].find(o=>o.value===LIMITS.lo+','+LIMITS.hi);
          $('#preset').value=opt?opt.value:'custom'; }
