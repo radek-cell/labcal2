@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.46)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.47)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -24,6 +24,21 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 **Clearer header.** *"Certificates — today"* with *"3 certificates across 2 jobs
 · 412 KB"* beneath, then the day bar, then one group per job with its own
 **Merge job & share**.
+
+## v1.47 — merged job PDF opens on its summary
+
+**Merge job & share** now puts the job summary in front of the certificates.
+One file that opens on the list of every unit — model, serial, location,
+worksheet, status, certificate number — with the totals across the top, then
+each certificate behind it in order.
+
+If the summary cannot be built for any reason the merge still runs; the cover
+is skipped rather than the whole file failing.
+
+Verified that the cover lands first. The certificate pages after it use the
+same merge path as before, which was verified separately — the test harness
+cannot exercise both together because it clones stored files in a way pdf-lib
+rejects.
 
 ## v1.46 — one data logger viewer, not two
 
@@ -967,13 +982,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v41**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v42**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v41, then hit **Refresh offline copy**.
+picks up v42, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

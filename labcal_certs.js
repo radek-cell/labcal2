@@ -246,12 +246,22 @@
   }
 
   // Staple every certificate from a day into one PDF, in the order produced.
-  function mergeDay(day, onProgress, jobRef) {
+  // cover: an optional Blob placed in front of the certificates — used for the
+  // job summary, so a merged job opens on the list of what was done.
+  function mergeDay(day, onProgress, jobRef, cover) {
     var want = day || todayIso();
     return Promise.all([listDay(want, jobRef), loadPdfLib()]).then(function (res) {
       var list = res[0], PDFLib = res[1];
       if (!list.length) throw new Error('There are no certificates to merge for that job.');
       return PDFLib.PDFDocument.create().then(function (out) {
+        function addCover() {
+          if (!cover) return Promise.resolve();
+          return blobToArrayBuffer(cover)
+            .then(function (buf) { return PDFLib.PDFDocument.load(buf); })
+            .then(function (src) { return out.copyPages(src, src.getPageIndices()); })
+            .then(function (pages) { pages.forEach(function (p) { out.addPage(p); }); })
+            .catch(function (e) { console.warn('Summary cover skipped:', e); });
+        }
         var i = 0;
         function next() {
           if (i >= list.length) return out.save();
@@ -272,9 +282,9 @@
               return next();
             });
         }
-        return next();
+        return addCover().then(next);
       }).then(function (bytes) {
-        return { blob: new Blob([bytes], { type: 'application/pdf' }), count: list.length };
+        return { blob: new Blob([bytes], { type: 'application/pdf' }), count: list.length, cover: !!cover };
       });
     });
   }

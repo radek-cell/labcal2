@@ -454,7 +454,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.46</span>
+    <span id="footYear">v1.47</span>
   </footer>
 
 </div>
@@ -626,7 +626,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.46 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.47 · ' + d.getFullYear();
 }
 
 
@@ -1310,9 +1310,19 @@ function bindCertActions(){
     const label = btn.textContent;
     btn.disabled = true;
     try{
+      // Put the job summary in front of the certificates, so a merged job
+      // opens on what was done rather than on the first unit.
+      let cover = null;
+      try{
+        const job = LabCalJobsheet.jobByRef ? LabCalJobsheet.jobByRef(jobRef) : null;
+        if(job && job.devices && job.devices.length && window.LabCalVectorPdf && window.jspdf){
+          cover = LabCalVectorPdf.blobJobSummary(job, LabCalJobsheet.progressOf(job));
+        }
+      }catch(e){ console.warn('Summary cover not built:', e); }
+
       const res = await LabCalCerts.mergeDay(day, (n,total)=>{
         btn.textContent = `Merging ${n}/${total}…`;
-      }, jobRef);
+      }, jobRef, cover);
       const name = LabCalCerts.mergedFileName(day, jobRef);
       btn.textContent = label;
       if(window.LabCalSave) await LabCalSave.deliver(res.blob, name);

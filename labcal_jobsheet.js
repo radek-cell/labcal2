@@ -859,6 +859,26 @@
   function jobsStore() { return readJson(KEY_JOBS, {}) || {}; }
   function jobKey(ref) { return String(ref || '').trim().toUpperCase() || 'NOJOB'; }
 
+  // A job by its reference, whether or not it is the one currently open.
+  function jobByRef(ref) {
+    var all = jobsStore();
+    return all[jobKey(ref)] || null;
+  }
+
+  function progressOf(job) {
+    if (!job || !job.devices) return { total: 0, done: 0, notRequired: 0, outstanding: 0 };
+    var today = todayIso(), out = { total: job.devices.length, done: 0, today: 0, earlier: 0, started: 0, notRequired: 0, outstanding: 0 };
+    job.devices.forEach(function (d) {
+      if (d.notRequired && !d.done) { out.notRequired++; return; }
+      if (d.done) {
+        out.done++;
+        if (String(d.doneAt || '').slice(0, 10) === today) out.today++; else out.earlier++;
+      } else if (isStarted(job.callNumber, d)) out.started++;
+    });
+    out.outstanding = out.total - out.done - out.notRequired;
+    return out;
+  }
+
   function listJobs() {
     var all = jobsStore();
     return Object.keys(all).map(function (k) {
@@ -1209,6 +1229,8 @@
     setCurrent: setCurrent,
     clearCurrent: clearCurrent,
     listJobs: listJobs,
+    jobByRef: jobByRef,
+    progressOf: progressOf,
     activeKey: activeKey,
     setActiveJob: setActiveJob,
     createJob: createJob,
