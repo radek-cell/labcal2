@@ -795,10 +795,106 @@ function medianInterval(rows){
 }
 
 /* pick the right reader for whatever was dropped in */
+/* ---------- 10 range (the older pharmacy fridges) ----------
+   These SD cards hold one file per day named YYMMDD.csv, with no header row
+   and carriage returns instead of newlines. Eleven fields per line:
+
+     time, T1, T2, D, C, F, I, H, L, B, P
+
+   T2 reads -273.1 when no second probe is fitted. The eight flags are the
+   ones Labcold's own IE-only viewer used, identified there by the letters
+   D(oor), C(ompressor), F(an), I, H(igh alarm), L(ow alarm), B(attery),
+   P(ower). Flag I is carried through but not labelled — see the note in the
+   legend. */
+// Temperatures are usually "  5.3" but some controllers drop the leading
+// digit and write "  .8"; flags are 0/1 on newer cards and letters or blanks
+// on older ones ("00:00,5.1,20,,C,F,,,,,"). Accept all of it here — the
+// detection only has to recognise the shape.
+const TEN_LINE = /^\s*\d{1,2}:\d{2}\s*,\s*-?[\d.]*\d\s*,\s*-?[\d.]*\d\s*(,\s*[01A-Za-z]?\s*){8}$/;
+
+function looksLikeTenRange(text){
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  let checked = 0, matched = 0;
+  for(const L of lines){
+    if(!L.trim()) continue;
+    checked++;
+    if(TEN_LINE.test(L)) matched++;
+    if(checked >= 12) break;
+  }
+  return checked > 0 && matched >= Math.max(3, Math.floor(checked * 0.8));
+}
+
+function parse10(text, fileName){
+  const fm = fileName.match(/(\d{2})(\d{2})(\d{2})\.csv$/i);
+  if(!fm) return null;
+  const dateKey = (2000 + +fm[1]) + '-' + pad(+fm[2]) + '-' + pad(+fm[3]);
+
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = [];
+  let anyT2 = false, truncated = 0, flagsSeen = {d:0,c:0,f:0,i:0,h:0,l:0,b:0,p:0};
+  for(const raw of lines){
+    const L = raw.replace(/\u0000/g,'').trim();
+    if(!L) continue;
+    const q = L.split(',');
+    if(q.length !== 11) continue;               // stray/partial line
+    const tm = q[0].split(':');
+    const h = parseInt(tm[0],10), mi = parseInt(tm[1],10);
+    if(!isFinite(h) || !isFinite(mi)) continue;
+    // A reading written without its leading digit (".8" where "3.8" was
+    // meant) cannot be recovered. Left out rather than read as 0.8 — a fridge
+    // review must not show a low-temperature excursion that never happened.
+    const rawA = q[1].trim(), rawB = q[2].trim();
+    let a = /^-?\d/.test(rawA) ? parseFloat(rawA) : null;
+    if(a === null) truncated++;
+    let b = /^-?\d/.test(rawB) ? parseFloat(rawB) : null;
+    // -273.1 is the controller's way of saying "no probe fitted"
+    if(b === null || !isFinite(b) || b <= -200) b = null; else anyT2 = true;
+    const on = j => { const v = q[j].trim(); return (v && v !== '0') ? 1 : 0; };
+    const F = { d:on(3), c:on(4), f:on(5), i:on(6), h:on(7), l:on(8), b:on(9), p:on(10) };
+    Object.keys(F).forEach(k=>{ if(F[k]) flagsSeen[k]++; });
+    rows.push({
+      m: h*60 + mi,
+      a: (a !== null && isFinite(a)) ? a : null,
+      b: b,
+      d: F.d,
+      c: F.c,
+      x: (F.h || F.l) ? 1 : 0,      // high or low alarm
+      p: F.p,
+      fan: F.f, i: F.i, hi: F.h, lo: F.l, bat: F.b
+    });
+  }
+  if(!rows.length) return null;
+  rows.sort((r,s)=>r.m-s.m);
+
+  return {
+    date: dateKey,
+    rows,
+    file: fileName,
+    setpoint: null,
+    unit: '',
+    fw: '',
+    pn: '',
+    range: '10',
+    hasDoor: true,
+    hasT3: false,
+    hasT2: anyT2,
+    flagsSeen,
+    truncated,
+    fileLimits: null,
+    iv: medianInterval(rows)
+  };
+}
+
 function parseFile(text, fileName){
   if(/^\s*Controller Name\s*,/i.test(text.slice(0,200))) return parse24(text, fileName);
   const one = parseCsv(text, fileName);
-  return one ? [one] : null;
+  if(one) return [one];
+  // no header row: the 10 range writes bare data, one file per day
+  if(looksLikeTenRange(text)){
+    const ten = parse10(text, fileName);
+    if(ten) return [ten];
+  }
+  return null;
 }
 
 async function ingest(files){
@@ -814,15 +910,17 @@ async function ingest(files){
     else META.customer = titleCase(top);
   }
 
-  let ok=0, bad=0, dayCount=0;
+  let ok=0, bad=0, dayCount=0, emptyFiles=0, truncated=0;
   const texts = await Promise.all(csvs.map(f=>f.text().catch(()=>null)));
   texts.forEach((tx,i)=>{
     if(!tx){ bad++; return; }
+    if(!tx.trim()){ emptyFiles++; return; }   // a day the logger wrote nothing to
     let list=null;
     try{ list = parseFile(tx, csvs[i].name); }catch(e){ list=null; }
     if(!list || !list.length){ bad++; return; }
     ok++;
     for(const d of list){
+      truncated += d.truncated || 0;
       const prev = DAYS.get(d.date);
       if(prev){
         /* same day arriving twice — merge without duplicating readings */
@@ -849,7 +947,14 @@ async function ingest(files){
   });
 
   if(!ok){ toast('Those files were not readable as Labcold logs.'); return; }
-  toast(dayCount+' day'+(dayCount===1?'':'s')+' loaded'+(bad?' · '+bad+' skipped':''));
+  // Say plainly what was left out. A reading the controller wrote without its
+  // leading digit cannot be recovered, and silently plotting it as 0.x would
+  // invent a temperature excursion.
+  const notes = [];
+  if(bad) notes.push(bad+' unreadable');
+  if(emptyFiles) notes.push(emptyFiles+' empty');
+  if(truncated) notes.push(truncated+' reading'+(truncated===1?'':'s')+' incomplete in the log and left out');
+  toast(dayCount+' day'+(dayCount===1?'':'s')+' loaded'+(notes.length?' · '+notes.join(' · '):''));
   afterLoad();
 }
 
@@ -2111,7 +2216,7 @@ function afterLoad(){
   }
   afterLoad._done=true;
 
-  const rangeName = META.range==='24' ? '24 Range' : META.range==='19' ? '19 Range' : '';
+  const rangeName = META.range==='24' ? '24 Range' : META.range==='19' ? '19 Range' : META.range==='10' ? '10 Range' : '';
   const badge=$('#rangeBadge'), tag=$('#rangeTag');
   if(rangeName){
     badge.hidden=false; badge.textContent=rangeName;

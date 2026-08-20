@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.44)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.45)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -24,6 +24,34 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 **Clearer header.** *"Certificates — today"* with *"3 certificates across 2 jobs
 · 412 KB"* beneath, then the day bar, then one group per job with its own
 **Merge job & share**.
+
+## v1.45 — 10 range logs in the data logger viewer
+
+The older pharmacy fridges are now readable alongside the 19 and 24 ranges.
+
+**The format.** One file per day named `YYMMDD.csv`, no header row, carriage
+returns instead of newlines, eleven fields per line:
+
+    time, T1, T2, D, C, F, I, H, L, B, P
+
+`T2` reads `-273.1` when no second probe is fitted. The eight flags are the
+ones Labcold's own Internet-Explorer-only viewer used, which identifies them by
+letter: **D**oor, **C**ompressor, **F**an, **I**?, **H**igh alarm, **L**ow
+alarm, **B**attery, **P**ower. Older cards write those letters (or blanks)
+instead of 1 and 0, and both encodings are accepted.
+
+**I have not labelled flag I** — the original viewer only gives the letter and
+I would be guessing. It is parsed and carried through, so naming it later is a
+one-line change. Worth confirming what that channel is on the controller.
+
+**Readings written without their leading digit.** Some files contain values
+like `  .8` where `3.8` was meant. These are **left out rather than read as
+0.8**: plotting them would invent a low-temperature excursion that never
+happened, which on a fridge review is worse than a gap. The load message says
+how many were dropped.
+
+Checked against a full card: 191 files, 186 parsed, 5 genuinely empty, none
+unreadable, 647 incomplete readings identified and excluded.
 
 ## v1.44 — text certificates by default
 
@@ -917,13 +945,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v39**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v40**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v39, then hit **Refresh offline copy**.
+picks up v40, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
