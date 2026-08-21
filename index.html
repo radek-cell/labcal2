@@ -475,7 +475,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.500</span>
+    <span id="footYear">v1.501</span>
   </footer>
 
 </div>
@@ -581,7 +581,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.500 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.501 · ' + d.getFullYear();
 }
 
 // ---- Fullscreen toggle (Android/desktop browsers; on iOS, use
@@ -1137,7 +1137,7 @@ function renderPdfQuality(){
 // which is right — but it also means a file that never got uploaded fails
 // silently. Say so plainly instead.
 // ---------------------------------------------------------------------
-const APP_VERSION = 'v1.500';
+const APP_VERSION = 'v1.501';
 function runSelfCheck(){
   const el = document.getElementById('selfCheck');
   if(!el) return;

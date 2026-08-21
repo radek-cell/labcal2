@@ -370,7 +370,13 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
   margin-top:8px;padding:8px 10px;background:#fdf3e3;border:1px solid var(--amber-dim);border-radius:6px;
 }
 .inline-ask .q{font-size:12px;color:#7a4c06;font-weight:600}
-.inline-ask.edit{flex-direction:column;align-items:stretch;gap:8px}
+.inline-ask.edit{flex-direction:column;align-items:stretch;gap:6px}
+.inline-ask .flab{
+  display:flex;flex-direction:column;gap:3px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.4px;text-transform:uppercase;color:#7a4c06;
+}
+.inline-ask .flab.grow{flex:1}
+.inline-ask .flab input{width:100%}
 .inline-ask .editrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .inline-ask .editrow .m{flex:0 1 150px}
 .inline-ask .editrow .s{flex:1 1 200px}
@@ -505,13 +511,16 @@ footer{
 
   <div class="certs" id="certPanel"></div>
 
-  <div class="section-label">WS · 01–06 — select a worksheet</div>
+  <div class="section-label" id="wsLabel" style="cursor:pointer">
+    <span id="wsToggleText">WS · 01–06 — worksheets</span>
+    <button class="cbtn mini" type="button" id="wsToggle" style="margin-left:auto">Show</button>
+  </div>
 
-  <div class="grid" id="grid"></div>
+  <div class="grid" id="grid" style="display:none"></div>
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.500</span>
+    <span id="footYear">v1.501</span>
   </footer>
 
 </div>
@@ -683,7 +692,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.500 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.501 · ' + d.getFullYear();
 }
 
 
@@ -754,7 +763,7 @@ function bindRoutingFooter(){
   if(rs) rs.addEventListener('click', ()=>{
     if(confirm('Forget every model-to-worksheet choice the app has learned?\n\nThe built-in rules stay. Anything outside them will ask again.')){
       LabCalJobsheet.forgetRoutes();
-      renderCalibrationPage();
+      renderJobPanel();
     }
   });
 }
@@ -1016,18 +1025,9 @@ function backBarHtml(){
 }
 
 function jobBarHtml(){
-  const jobs = LabCalJobsheet.listJobs();
-  const active = LabCalJobsheet.activeKey();
-  const opts = jobs.map(j=>{
-    const label = `${j.callNumber || '(no ref)'} — ${j.customer || 'no site'} · ${j.done}/${j.total}`
-      + (j.outstanding ? ` · ${j.outstanding} left` : ' · complete');
-    return `<option value="${jesc(j.key)}"${j.key===active?' selected':''}>${jesc(label)}</option>`;
-  }).join('');
   return backBarHtml() + `
     <div class="jobbar">
-      ${jobs.length ? `<select id="jobSelect" title="Switch job">${opts}</select>` : '<span class="job-sub">No job open</span>'}
-      <button class="jbtn ghost mini" type="button" id="jobNewBtn">+ New job</button>
-      <button class="jbtn ghost mini" type="button" id="jobLoadBtn2">Load jobsheet</button>
+      <button class="jbtn ghost mini" type="button" id="jobLoadBtn2">Replace jobsheet</button>
     </div>
     <div class="newjob" id="newJobForm">
       <input class="ref" id="newJobRef" placeholder="Job ref (ENQ…)">
@@ -1043,12 +1043,6 @@ function bindJobBar(){
   if(back) back.addEventListener('click', ()=>{
     viewMode = 'day'; jobFilter=''; askingIdx=null; removingIdx=null; editingIdx=null;
     renderCalibrationPage();
-  });
-  const sel = document.getElementById('jobSelect');
-  if(sel) sel.addEventListener('change', ()=>{
-    LabCalJobsheet.setActiveJob(sel.value);
-    jobFilter=''; askingIdx=null; removingIdx=null; jobToast=null;
-    renderJobPanel();
   });
   const nb = document.getElementById('jobNewBtn');
   if(nb) nb.addEventListener('click', ()=>{
@@ -1164,13 +1158,13 @@ function renderJobPanel(){
       </div>
       ${editingIdx === i ? `
       <div class="inline-ask edit">
+        <span class="q">Correct ${jesc(d.serial || d.model || 'this unit')}</span>
         <div class="editrow">
-          <span class="q">Correct this unit</span>
-          <input id="editModel" class="m" placeholder="Model" value="${jesc(d.model||'')}">
-          <input id="editSerial" class="s" placeholder="Serial number" value="${jesc(d.serial||'')}">
+          <label class="flab">Model<input id="editModel" class="m" value="${jesc(d.model||'')}"></label>
+          <label class="flab">Serial number<input id="editSerial" class="s" value="${jesc(d.serial||'')}"></label>
         </div>
         <div class="editrow">
-          <input id="editLoc" class="l" placeholder="Location / department" value="${jesc(d.location||'')}">
+          <label class="flab grow">Location / department<input id="editLoc" class="l" value="${jesc(d.location||'')}"></label>
           <button class="jbtn mini" type="button" data-edit-ok="${i}">Save</button>
           <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
         </div>
@@ -1410,6 +1404,24 @@ if(jobFile){
 if(window.LabCalJobsheet){
   LabCalJobsheet.onChange(()=>renderCalibrationPage());
 }
+
+
+// The worksheets are reached through a job now, so the tiles start folded.
+// They stay available for opening a sheet on its own.
+(function worksheetFold(){
+  const grid=document.getElementById('grid');
+  const btn=document.getElementById('wsToggle');
+  if(!grid||!btn) return;
+  const apply=open=>{
+    grid.style.display = open ? '' : 'none';
+    btn.textContent = open ? 'Hide' : 'Show';
+    try{ localStorage.setItem('labcal.ui.worksheets', open?'1':'0'); }catch(e){}
+  };
+  let open=false;
+  try{ open = localStorage.getItem('labcal.ui.worksheets')==='1'; }catch(e){}
+  apply(open);
+  btn.addEventListener('click', ()=>apply(grid.style.display==='none'));
+})();
 
 renderCalibrationPage();
 
