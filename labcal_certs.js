@@ -289,11 +289,20 @@
     });
   }
 
+  // IndexedDB fires no cross-tab event, so a certificate generated on a
+  // worksheet would not reach a calibration page open in another tab. A
+  // localStorage ping does travel between tabs, so use it as the signal.
+  var PING = 'labcal.certs.ping';
   function announce() {
     try { global.dispatchEvent(new CustomEvent(CHANGE_EVENT)); } catch (e) {}
+    try { global.localStorage.setItem(PING, String(Date.now())); } catch (e) {}
   }
   function onChange(fn) {
-    if (typeof fn === 'function') global.addEventListener(CHANGE_EVENT, fn);
+    if (typeof fn !== 'function') return;
+    global.addEventListener(CHANGE_EVENT, fn);
+    global.addEventListener('storage', function (e) {
+      if (!e || e.key === PING) fn();
+    });
   }
 
   // The merged file is named after the job so two jobs on the same day can

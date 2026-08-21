@@ -531,7 +531,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.502</span>
+    <span id="footYear">v1.503</span>
   </footer>
 
 </div>
@@ -703,7 +703,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.502 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.503 · ' + d.getFullYear();
 }
 
 
@@ -1790,8 +1790,13 @@ async function reconcileWorklistFromCertificates(){
 
 if(window.LabCalCerts){
   LabCalCerts.prune().then(renderCertPanel).then(reconcileWorklistFromCertificates);
-  LabCalCerts.onChange(renderCertPanel);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) renderCertPanel(); });
+  LabCalCerts.onChange(()=>renderCalibrationPage());
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) renderCalibrationPage(); });
+  // Safari restores a page from its back-forward cache without re-running any
+  // script, so coming back from a worksheet could show the page exactly as it
+  // was — without the certificate just generated. Re-render on restore.
+  window.addEventListener('pageshow', (e)=>{ if(e && e.persisted) renderCalibrationPage(); });
+  window.addEventListener('focus', ()=>renderCalibrationPage());
 }
 
 renderOffsetStrip();
