@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.505)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.506)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,24 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.506 — a corrected serial no longer strands its certificate
+
+The diagnostic added in v1.505 found it on the first try: the unit showed
+*"S 12345 not stored on this device"* — and, beside it, the **edited** tag.
+
+The certificate had been issued, then the serial was corrected. Certificates
+were matched to units on the **current** serial only, so one issued beforehand
+matched nothing and appeared to be missing.
+
+A unit now answers to every serial it has had: the one printed on the jobsheet,
+any it was corrected from, and its current one. The certificate reattaches and
+carries a small **as OLD-123** tag, so the serial it was issued under stays
+visible rather than being quietly rewritten — the certificate itself still says
+the old number, and the page should not pretend otherwise.
+
+Reproduced from the screenshot before fixing: certificate issued under one
+serial, serial corrected, certificate stranded. It now shows on the unit's row.
 
 ## v1.505 — say why a certificate is missing
 
@@ -1126,13 +1144,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v48**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v49**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v48, then hit **Refresh offline copy**.
+picks up v49, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

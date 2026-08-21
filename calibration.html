@@ -542,7 +542,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.505</span>
+    <span id="footYear">v1.506</span>
   </footer>
 
 </div>
@@ -714,7 +714,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.505 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.506 · ' + d.getFullYear();
 }
 
 
@@ -1041,22 +1041,35 @@ async function loadJobCerts(){
     let all = [];
     for(const d of days) all.push(...await LabCalCerts.listDay(d.day));
     const ref = js.callNumber || '';
-    const known = {};
-    (js.devices||[]).forEach(d=>{ if(d.serial) known[serialKeyOf(d.serial)] = true; });
+
+    // A unit answers to every serial it has ever had: the one on the jobsheet,
+    // any it was corrected from, and its current one. A certificate issued
+    // before a correction still belongs to that unit — matching only on the
+    // current serial left it stranded, showing as "not stored on this device".
+    const aliasToUnit = {};
+    (js.devices||[]).forEach(d=>{
+      const cur = serialKeyOf(d.serial);
+      if(!cur) return;
+      [d.serial, d.sheetSerial, d.serialWas].forEach(v=>{
+        const a = serialKeyOf(v);
+        if(a) aliasToUnit[a] = cur;
+      });
+    });
 
     // Belt and braces: a certificate belongs to this job if it carries the job
-    // reference OR if its serial is one of this job's units. A certificate
-    // filed with the wrong reference — which used to happen when the worksheet
-    // kept the previous job's number — must not vanish off the page.
+    // reference OR its serial matches one of this job's units under any of
+    // that unit's serials.
     const mine = all.filter(c=>{
       const k = serialKeyOf(c.serial);
-      return (c.jobRef||'') === ref || (k && known[k]);
+      return (c.jobRef||'') === ref || (k && aliasToUnit[k]);
     });
     mine.forEach(c=>{
       const k = serialKeyOf(c.serial);
-      if(k && known[k]){
+      const unitKey = k && aliasToUnit[k];
+      if(unitKey){
         c.__refMismatch = (c.jobRef||'') !== ref;
-        (jobCerts[k] = jobCerts[k] || []).push(c);
+        c.__serialWas = (k !== unitKey) ? c.serial : '';
+        (jobCerts[unitKey] = jobCerts[unitKey] || []).push(c);
       }else{
         jobCertsOther.push(c);
       }
@@ -1262,6 +1275,7 @@ function renderJobPanel(){
             <span class="uc-name">${jesc(c.certRef || c.filename)}</span>
             ${c.superseded?'<span class="uc-tag">superseded</span>':''}
             ${c.__refMismatch?`<span class="uc-tag" title="Filed under ${jesc(c.jobRef||'no job reference')}">other job ref</span>`:''}
+            ${c.__serialWas?`<span class="uc-tag" title="Issued before the serial was corrected">as ${jesc(c.__serialWas)}</span>`:''}
             <button class="cbtn mini" type="button" data-cview="${c.id}">View</button>
             <button class="cbtn mini" type="button" data-cshare="${c.id}">Share</button>
           </span>`).join('') + `</div>`;
