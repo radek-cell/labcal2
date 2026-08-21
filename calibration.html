@@ -267,6 +267,12 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
   background:#eef7f1;border:1px solid var(--green);border-radius:6px;padding:4px 6px 4px 9px;
 }
 .ucert.sup{background:var(--bg2);border-color:var(--border);opacity:.7}
+.ucert.missing{background:#fdf3e3;border-color:var(--amber-dim)}
+.ucert.missing .uc-name{color:#7a4c06;font-weight:600}
+.certnote{
+  margin-top:10px;padding:8px 11px;border-radius:6px;font-size:12px;
+  background:#fdecea;border:1px solid #c0392b;color:#8a3222;
+}
 .uc-name{font-family:var(--mono);font-size:11px;font-weight:650;color:#20603a}
 .ucert.sup .uc-name{color:var(--muted-dim);text-decoration:line-through}
 .uc-tag{font-family:var(--mono);font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--amber)}
@@ -536,7 +542,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.504</span>
+    <span id="footYear">v1.505</span>
   </footer>
 
 </div>
@@ -708,7 +714,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.504 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.505 · ' + d.getFullYear();
 }
 
 
@@ -1023,10 +1029,13 @@ function serialKeyOf(v){ return String(v||'').trim().toUpperCase().replace(/[^A-
 
 // The certificates live in IndexedDB, so they have to be fetched before the
 // worklist is drawn — each unit shows its own certificate on its own row.
+let certLoadNote = '';   // why the certificates could not be read, if they could not
 async function loadJobCerts(){
-  jobCerts = {}; jobCertsOther = [];
+  jobCerts = {}; jobCertsOther = []; certLoadNote = '';
   const js = LabCalJobsheet.current();
-  if(!js || !window.LabCalCerts || !LabCalCerts.supported()) return;
+  if(!js) return;
+  if(!window.LabCalCerts){ certLoadNote = 'labcal_certs.js did not load on this device, so certificates cannot be shown.'; return; }
+  if(!LabCalCerts.supported()){ certLoadNote = 'This browser will not store certificates, so none can be shown here. Private browsing does this.'; return; }
   try{
     const days = await LabCalCerts.days();
     let all = [];
@@ -1054,7 +1063,9 @@ async function loadJobCerts(){
     });
     Object.keys(jobCerts).forEach(k=>jobCerts[k].sort((a,b)=>a.savedAt<b.savedAt?1:-1));
     jobCertsOther.sort((a,b)=>a.savedAt<b.savedAt?1:-1);
-  }catch(e){ /* the worklist still works without them */ }
+  }catch(e){
+    certLoadNote = 'Certificates could not be read: ' + (e && e.message ? e.message : e);
+  }
 }
 let askingIdx = null;
 let editingIdx = null;    // which row is being corrected      // which row is showing its inline "not required?" ask
@@ -1235,7 +1246,17 @@ function renderJobPanel(){
       </div>` : ''}
       ${(function(){
         const list = jobCerts[serialKeyOf(d.serial)] || [];
-        if(!list.length) return '';
+        if(!list.length){
+          // Certified, but nothing on file — say so rather than showing a
+          // blank row that looks like the page is broken.
+          if(d.done && !certLoadNote){
+            return `<div class="unitcerts"><span class="ucert missing">
+              <span class="uc-name">${jesc(d.certRef || 'certificate')} not stored on this device</span>
+              <span class="uc-tag">saved out, or storage was full</span>
+            </span></div>`;
+          }
+          return '';
+        }
         return `<div class="unitcerts">` + list.map(c=>`
           <span class="ucert${c.superseded?' sup':''}">
             <span class="uc-name">${jesc(c.certRef || c.filename)}</span>
@@ -1299,6 +1320,7 @@ function renderJobPanel(){
     </div>
     ${rows}
     ${filter && !shown.length ? '<div class="jdev"><div class="jdev-main"><div class="jdev-meta">No unit matches that search.</div></div></div>' : ''}
+    ${certLoadNote ? `<div class="certnote">${jesc(certLoadNote)}</div>` : ''}
     ${jobCertsOther.length ? `
     <div class="othercerts">
       <h5>Other certificates for this job — ${jobCertsOther.length}</h5>

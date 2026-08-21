@@ -23,6 +23,7 @@
   var CHANGE_EVENT = 'labcal-certs-changed';
 
   var doc = global.document;
+  var lastError = null;   // why the last filing attempt failed, if it did
 
   function todayIso() {
     var d = new Date();
@@ -92,7 +93,10 @@
       .then(function (id) { announce(); return id; })
       .catch(function (e) {
         // Never let a storage problem lose the engineer their certificate —
-        // the file has already been saved/shared by this point.
+        // the file has already been saved/shared by this point. But do not
+        // hide it either: a certificate that was never filed will not appear
+        // on its job, and silence made that look like a display bug.
+        lastError = (e && e.message) ? e.message : String(e);
         console.warn('Could not file this certificate in the day list:', e);
         return null;
       });
@@ -324,6 +328,7 @@
     KEEP_DAYS: KEEP_DAYS,
     CHANGE_EVENT: CHANGE_EVENT,
     supported: supported,
+    lastError: function () { return lastError; },
     todayIso: todayIso,
     add: add,
     addRestored: addRestored,

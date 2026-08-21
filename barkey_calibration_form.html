@@ -708,12 +708,18 @@ function restoreSwappedFields(swaps){
 // Purely additive — the file has already been saved or shared by this point,
 // so a storage failure here can never lose the engineer their work.
 function fileCertificateForToday(blob, filename){
-  if(!window.LabCalCerts || !blob) return;
+  if(!blob) return;
+  const hint=document.getElementById('pdfNameHint');
+  const warn=msg=>{ if(hint) hint.textContent = 'PDF saved, but ' + msg; console.warn(msg); };
+  if(!window.LabCalCerts){ warn('labcal_certs.js did not load, so it is not on the job list.'); return; }
+  if(!LabCalCerts.supported()){ warn('this browser will not store it, so it will not appear on the job list.'); return; }
   const v=id=>{ const el=document.getElementById(id); return el?el.value:''; };
   LabCalCerts.add(blob, {
     filename, sheet:'barkey',
     certRef:v('sheetNo'), serial:v('serial'), model:v('model'),
     site:v('site'), jobRef:v('jobRef')
+  }).then(id=>{
+    if(!id) warn('it could not be added to the job list' + (LabCalCerts.lastError()? ' — '+LabCalCerts.lastError() : '') + '.');
   });
 }
 // ---------------------------------------------------------------------
