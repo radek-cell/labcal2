@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.47)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.500)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -24,6 +24,43 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 **Clearer header.** *"Certificates — today"* with *"3 certificates across 2 jobs
 · 412 KB"* beneath, then the day bar, then one group per job with its own
 **Merge job & share**.
+
+## Version numbering
+
+From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
+room for a lot of small releases before anything needs a bigger number.
+
+## v1.500 — the calibration page is now a day, then a job
+
+Two levels, one thing on screen at a time. The old layout showed one job's units
+above *every* job's certificates, which is what made it easy to mix up.
+
+**The day.** A calendar — two weeks by default, **Month** for the full grid —
+with a dot under any day that has work on it. Under it, the jobs worked that
+day as cards: reference, site, and `1 of 3 done · 1 left · 1 not required`, with
+a progress bar. Arrows step a day at a time, or a month at a time in month view.
+There is a date picker and a **Today** button.
+
+A job appears on **every day it was actually touched** — opened, certified,
+marked not required, corrected — so a job running Monday to Wednesday shows on
+all three, and Wednesday shows what you really did that day.
+
+Certificates on a day that belong to no job get their own **No job reference**
+card rather than being hidden.
+
+**The job.** Tap a card and you get that job: the unit list exactly as before,
+and **only that job's certificates** beneath it. A back button returns to the
+day. Loading a jobsheet drops you straight into its job.
+
+### Fixed on the way
+
+- **The data logger viewer would not load anything.** Merging the two copies in
+  v1.46 left two variables undeclared in the newer file's `ingest`, so it threw
+  on the first file. Declared, and empty log files are now reported as *empty*
+  rather than *skipped* — only a genuine read failure counts as skipped.
+- One tap on the calendar's back arrow jumped five months, because the day view
+  re-bound its handlers on every render. Same fault as the earlier "+ Add unit"
+  bug: bind only when the markup was actually replaced.
 
 ## v1.47 — merged job PDF opens on its summary
 
@@ -982,13 +1019,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v42**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v43**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v42, then hit **Refresh offline copy**.
+picks up v43, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

@@ -288,6 +288,62 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 .prog .ptrack i.notreq{background:var(--muted-dim)}
 
 /* ---- job bar ---- */
+/* ---- day view: calendar, then the jobs worked that day ---- */
+.calbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.calbar .arrow{
+  font-family:var(--mono);font-size:14px;line-height:1;color:var(--muted);
+  background:transparent;border:1px solid var(--border);border-radius:6px;
+  padding:7px 11px;cursor:pointer;
+}
+.calbar .arrow:hover{border-color:var(--cyan-dim);color:var(--cyan)}
+.calbar .label{font-size:14.5px;font-weight:650;letter-spacing:-.2px;min-width:132px}
+.calbar .spacer{flex:1}
+.calbar input[type=date]{
+  font-family:var(--mono);font-size:11.5px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:6px;background:#fff;color:var(--ink);
+}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:6px}
+.strip.month{gap:4px}
+.strip .dow{
+  font-family:var(--mono);font-size:9px;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--muted-dim);text-align:center;padding-bottom:2px;
+}
+.cell{
+  position:relative;border:1px solid var(--border);border-radius:7px;background:var(--panel);
+  padding:7px 4px 9px;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.cell:hover{border-color:var(--cyan-dim)}
+.cell.other{opacity:.38}
+.cell.today{border-color:var(--cyan)}
+.cell.sel{background:var(--cyan);border-color:var(--cyan)}
+.cell.sel .num,.cell.sel .dot{color:#fff}
+.cell .num{font-family:var(--mono);font-size:13px;font-weight:650;line-height:1}
+.cell .dot{
+  position:absolute;left:0;right:0;bottom:2.5px;font-family:var(--mono);
+  font-size:8.5px;color:var(--cyan);letter-spacing:-.5px;
+}
+.cell.sel .dot{color:#fff}
+.jobcard{
+  display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:center;
+  padding:12px 0;border-top:1px solid var(--border-soft);cursor:pointer;
+}
+.jobcard:hover .jc-ref{color:var(--cyan)}
+.jc-ref{font-family:var(--mono);font-size:13.5px;font-weight:700;letter-spacing:.4px}
+.jc-sub{font-size:12px;color:var(--muted);line-height:1.6;margin-top:2px}
+.jc-counts{font-family:var(--mono);font-size:10.5px;color:var(--muted-dim);margin-top:3px}
+.jc-open{font-family:var(--mono);font-size:11px;font-weight:650;color:var(--cyan);white-space:nowrap}
+.jc-bar{grid-column:1/-1;height:4px;border-radius:3px;background:var(--bg2);border:1px solid var(--border-soft);overflow:hidden;position:relative}
+.jc-bar i{position:absolute;top:0;left:0;height:100%}
+.jc-bar i.done{background:var(--green)}
+.jc-bar i.settled{background:var(--muted-dim)}
+.backbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.backbtn{
+  font-family:var(--mono);font-size:11.5px;font-weight:650;color:var(--muted);
+  background:var(--panel);border:1px solid var(--border);border-radius:7px;
+  padding:8px 13px;cursor:pointer;
+}
+.backbtn:hover{border-color:var(--cyan-dim);color:var(--cyan)}
+
 .jobbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .jobbar select{
   font-family:var(--sans);font-size:12.5px;padding:8px 10px;border:1px solid var(--border);
@@ -443,6 +499,7 @@ footer{
 
   <div class="offsets" id="offsetStrip"></div>
 
+  <div class="job" id="dayPanel"></div>
   <div class="job" id="jobPanel"></div>
   <input id="jobFile" type="file" accept="application/pdf,.pdf" style="display:none">
 
@@ -454,7 +511,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.47</span>
+    <span id="footYear">v1.500</span>
   </footer>
 
 </div>
@@ -626,7 +683,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.47 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.500 · ' + d.getFullYear();
 }
 
 
@@ -697,9 +754,232 @@ function bindRoutingFooter(){
   if(rs) rs.addEventListener('click', ()=>{
     if(confirm('Forget every model-to-worksheet choice the app has learned?\n\nThe built-in rules stay. Anything outside them will ask again.')){
       LabCalJobsheet.forgetRoutes();
-      renderJobPanel();
+      renderCalibrationPage();
     }
   });
+}
+
+
+// ---------------------------------------------------------------------
+// The calibration page has two levels: a day, showing the jobs worked on
+// it, and a job, showing that job's units and certificates. One thing on
+// screen at a time — the old layout showed one job's units above every
+// job's certificates, which is what made it easy to mix up.
+// ---------------------------------------------------------------------
+const dayPanel = document.getElementById('dayPanel');
+let viewMode = 'day';                 // 'day' | 'job'
+let selDay = null;                    // YYYY-MM-DD
+let calMonth = null;                  // first of the month shown
+let calExpanded = false;              // week strip vs full month
+
+function isoDay(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fromIso(s){ const p=String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+function monthLabel(d){ return d.toLocaleDateString('en-GB',{month:'long', year:'numeric'}); }
+function dayLabel(iso){
+  const d=fromIso(iso), t=isoDay(new Date());
+  if(iso===t) return 'Today';
+  const y=new Date(); y.setDate(y.getDate()-1);
+  if(iso===isoDay(y)) return 'Yesterday';
+  return d.toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long'});
+}
+
+function calendarHtml(){
+  const marks = LabCalJobsheet.allActiveDays ? LabCalJobsheet.allActiveDays() : {};
+  const today = isoDay(new Date());
+  const sel = selDay || today;
+  const base = calMonth ? fromIso(calMonth) : fromIso(sel);
+
+  let cells = [];
+  if(calExpanded){
+    const first = new Date(base.getFullYear(), base.getMonth(), 1);
+    const start = new Date(first);
+    start.setDate(1 - ((first.getDay()+6) % 7));          // weeks start Monday
+    for(let i=0;i<42;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i);
+      cells.push({d, other: d.getMonth()!==base.getMonth()});
+    }
+  }else{
+    // two weeks, ending on the selected day's week
+    const s=fromIso(sel);
+    const start=new Date(s); start.setDate(s.getDate() - ((s.getDay()+6)%7) - 7);
+    for(let i=0;i<14;i++){
+      const d=new Date(start); d.setDate(start.getDate()+i);
+      cells.push({d, other:false});
+    }
+  }
+  const dows = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    .map(x=>`<div class="dow">${x}</div>`).join('');
+  const grid = cells.map(c=>{
+    const iso=isoDay(c.d), n=marks[iso]||0;
+    return `<div class="cell${c.other?' other':''}${iso===today?' today':''}${iso===sel?' sel':''}" data-day="${iso}">
+      <div class="num">${c.d.getDate()}</div>
+      ${n?`<div class="dot">${'•'.repeat(Math.min(n,3))}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="calbar">
+      <button class="arrow" type="button" id="calPrev" title="Previous">‹</button>
+      <span class="label">${calExpanded ? monthLabel(base) : dayLabel(sel)}</span>
+      <button class="arrow" type="button" id="calNext" title="Next">›</button>
+      <span class="spacer"></span>
+      <input type="date" id="calPick" value="${sel}">
+      <button class="cbtn mini" type="button" id="calToday">Today</button>
+      <button class="cbtn mini" type="button" id="calToggle">${calExpanded?'Two weeks':'Month'}</button>
+    </div>
+    <div class="strip${calExpanded?' month':''}">${dows}${grid}</div>`;
+}
+
+async function renderDayView(){
+  if(!dayPanel || !window.LabCalJobsheet) return;
+  const today = isoDay(new Date());
+  if(!selDay) selDay = today;
+  const jobs = LabCalJobsheet.jobsActiveOn ? LabCalJobsheet.jobsActiveOn(selDay) : [];
+
+  // certificates on this day that belong to no job get their own card
+  let orphan = 0;
+  try{
+    if(window.LabCalCerts && LabCalCerts.supported()){
+      const list = await LabCalCerts.listDay(selDay);
+      orphan = list.filter(c=>!c.jobRef).length;
+    }
+  }catch(e){ /* the day view still works without it */ }
+
+  const cards = jobs.map(j=>{
+    const donePct = j.total ? Math.round((j.done/j.total)*100) : 0;
+    const settledPct = j.total ? Math.round(((j.done+j.notRequired)/j.total)*100) : 0;
+    const bits = [
+      `${j.done} of ${j.total} done`,
+      j.outstanding ? `<b>${j.outstanding} left</b>` : 'all settled',
+      j.notRequired ? `${j.notRequired} not required` : '',
+      j.started ? `${j.started} started` : '',
+      j.multiDay ? `spans ${j.days.length} days` : ''
+    ].filter(Boolean).join(' · ');
+    return `
+      <div class="jobcard" data-job="${jesc(j.key)}">
+        <div>
+          <div class="jc-ref">${jesc(j.callNumber || '(no job reference)')}</div>
+          <div class="jc-sub">${jesc(j.customer || 'No site recorded')}${j.department?' · '+jesc(j.department):''}</div>
+          <div class="jc-counts">${bits}</div>
+        </div>
+        <div class="jc-open">Open →</div>
+        <span class="jc-bar"><i class="settled" style="width:${settledPct}%"></i><i class="done" style="width:${donePct}%"></i></span>
+      </div>`;
+  }).join('');
+
+  const orphanCard = orphan ? `
+      <div class="jobcard" data-job="__none__">
+        <div>
+          <div class="jc-ref">No job reference</div>
+          <div class="jc-sub">${orphan} certificate${orphan===1?'':'s'} on this day not tied to a job</div>
+        </div>
+        <div class="jc-open">Open →</div>
+      </div>` : '';
+
+  const empty = (!jobs.length && !orphan) ? `
+      <div class="jobcard" style="cursor:default">
+        <div>
+          <div class="jc-sub">Nothing worked on ${jesc(dayLabel(selDay).toLowerCase())}. Start a job, or load a jobsheet.</div>
+        </div>
+      </div>` : '';
+
+  const dayChanged = setHtml(dayPanel, `
+    ${calendarHtml()}
+    <div class="job-head">
+      <div>
+        <p class="job-title">${jesc(dayLabel(selDay))}${jobs.length?` — ${jobs.length} job${jobs.length===1?'':'s'}`:''}</p>
+        <div class="job-sub">${jesc(fromIso(selDay).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}))}</div>
+      </div>
+      <div class="job-actions">
+        <button class="jbtn ghost mini" type="button" id="dayNewJob">+ New job</button>
+        <button class="jbtn ghost mini" type="button" id="dayLoadSheet">Load jobsheet</button>
+      </div>
+    </div>
+    <div class="newjob" id="newJobForm">
+      <input class="ref" id="newJobRef" placeholder="Job ref (ENQ…)">
+      <input class="cust" id="newJobCust" placeholder="Site / customer">
+      <input class="day" id="newJobDay" type="date" value="${selDay}">
+      <button class="jbtn mini" type="button" id="newJobConfirm">Start job</button>
+      <button class="jbtn ghost mini" type="button" id="newJobCancel">Cancel</button>
+    </div>
+    ${toastHtml()}
+    ${cards}${orphanCard}${empty}`);
+  dayPanel.className = 'job';
+  // Binding on every render would attach a second copy of each handler to the
+  // same buttons — that is what made one tap on "‹" jump five months.
+  if(dayChanged) bindDayView();
+}
+
+function bindDayView(){
+  const go = iso => { selDay = iso; calMonth = iso; jobToast = null; renderCalibrationPage(); };
+  const pick = document.getElementById('calPick');
+  if(pick) pick.addEventListener('change', ()=>{ if(pick.value) go(pick.value); });
+  const today = document.getElementById('calToday');
+  if(today) today.addEventListener('click', ()=>go(isoDay(new Date())));
+  const tog = document.getElementById('calToggle');
+  if(tog) tog.addEventListener('click', ()=>{ calExpanded = !calExpanded; renderCalibrationPage(); });
+  const prev = document.getElementById('calPrev');
+  if(prev) prev.addEventListener('click', ()=>{
+    const d = fromIso(selDay);
+    if(calExpanded) d.setMonth(d.getMonth()-1); else d.setDate(d.getDate()-1);
+    go(isoDay(d));
+  });
+  const next = document.getElementById('calNext');
+  if(next) next.addEventListener('click', ()=>{
+    const d = fromIso(selDay);
+    if(calExpanded) d.setMonth(d.getMonth()+1); else d.setDate(d.getDate()+1);
+    go(isoDay(d));
+  });
+  dayPanel.querySelectorAll('.cell').forEach(c=>c.addEventListener('click',()=>go(c.getAttribute('data-day'))));
+  dayPanel.querySelectorAll('[data-job]').forEach(card=>card.addEventListener('click',()=>{
+    const key = card.getAttribute('data-job');
+    if(key === '__none__'){ viewMode='job'; certJobFilter=''; LabCalJobsheet.setActiveJob(''); renderCalibrationPage(); return; }
+    LabCalJobsheet.setActiveJob(key);
+    viewMode = 'job'; certJobFilter = null; jobFilter=''; jobToast=null;
+    renderCalibrationPage();
+  }));
+  const nb = document.getElementById('dayNewJob');
+  if(nb) nb.addEventListener('click', ()=>{
+    const f=document.getElementById('newJobForm');
+    f.classList.toggle('open');
+    if(f.classList.contains('open')) document.getElementById('newJobRef').focus();
+  });
+  const nc = document.getElementById('newJobConfirm');
+  if(nc) nc.addEventListener('click', ()=>{
+    const f=document.getElementById('newJobForm');
+    if(f && !f.classList.contains('open')) return;
+    const ref=document.getElementById('newJobRef').value.trim();
+    if(!ref){ jobToast={text:'Give the job a reference (the ENQ number) so certificates can be grouped by it.',bad:true}; renderCalibrationPage(); return; }
+    LabCalJobsheet.createJob({callNumber:ref, customer:document.getElementById('newJobCust').value.trim(), day:document.getElementById('newJobDay').value||selDay});
+    viewMode='job'; jobFilter=''; jobToast={text:`Job ${ref} started.`};
+    renderCalibrationPage();
+  });
+  const nx = document.getElementById('newJobCancel');
+  if(nx) nx.addEventListener('click', ()=>document.getElementById('newJobForm').classList.remove('open'));
+  const ls = document.getElementById('dayLoadSheet');
+  if(ls) ls.addEventListener('click', ()=>jobFile.click());
+}
+
+// Which panel is on screen.
+let certJobFilter = null;   // null = the active job; '' = certificates with no job
+async function renderCalibrationPage(){
+  // Look these up each time: this runs during page setup, before the consts
+  // further down the file have been initialised.
+  const dp = document.getElementById('dayPanel');
+  const jp = document.getElementById('jobPanel');
+  const cp = document.getElementById('certPanel');
+  if(viewMode === 'day'){
+    if(jp) jp.style.display='none';
+    if(cp) cp.style.display='none';
+    if(dp) dp.style.display='';
+    await renderDayView();
+  }else{
+    if(dp) dp.style.display='none';
+    if(jp) jp.style.display='';
+    if(cp) cp.style.display='';
+    renderJobPanel();
+    await renderCertPanel();
+  }
 }
 
 let jobFilter = '';
@@ -727,6 +1007,14 @@ function toastHtml(){
 }
 
 // The job bar: which job is open, and how to start another.
+function backBarHtml(){
+  return `
+    <div class="backbar">
+      <button class="backbtn" type="button" id="backToDay">← ${jesc(dayLabel(selDay || isoDay(new Date())))}</button>
+      <span class="job-sub" id="backSub"></span>
+    </div>`;
+}
+
 function jobBarHtml(){
   const jobs = LabCalJobsheet.listJobs();
   const active = LabCalJobsheet.activeKey();
@@ -735,7 +1023,7 @@ function jobBarHtml(){
       + (j.outstanding ? ` · ${j.outstanding} left` : ' · complete');
     return `<option value="${jesc(j.key)}"${j.key===active?' selected':''}>${jesc(label)}</option>`;
   }).join('');
-  return `
+  return backBarHtml() + `
     <div class="jobbar">
       ${jobs.length ? `<select id="jobSelect" title="Switch job">${opts}</select>` : '<span class="job-sub">No job open</span>'}
       <button class="jbtn ghost mini" type="button" id="jobNewBtn">+ New job</button>
@@ -751,6 +1039,11 @@ function jobBarHtml(){
 }
 
 function bindJobBar(){
+  const back = document.getElementById('backToDay');
+  if(back) back.addEventListener('click', ()=>{
+    viewMode = 'day'; jobFilter=''; askingIdx=null; removingIdx=null; editingIdx=null;
+    renderCalibrationPage();
+  });
   const sel = document.getElementById('jobSelect');
   if(sel) sel.addEventListener('change', ()=>{
     LabCalJobsheet.setActiveJob(sel.value);
@@ -1106,7 +1399,8 @@ if(jobFile){
     try{
       const parsed = await LabCalJobsheet.parseFile(file);
       LabCalJobsheet.setCurrent(parsed, file.name);
-      renderJobPanel();
+      viewMode = 'job'; jobFilter=''; certJobFilter=null;
+      renderCalibrationPage();
     }catch(e){
       alert('Cannot read this jobsheet PDF: ' + (e && e.message ? e.message : e));
     }
@@ -1114,10 +1408,10 @@ if(jobFile){
 }
 
 if(window.LabCalJobsheet){
-  LabCalJobsheet.onChange(renderJobPanel);
+  LabCalJobsheet.onChange(()=>renderCalibrationPage());
 }
 
-renderJobPanel();
+renderCalibrationPage();
 
 
 // ---------------------------------------------------------------------
@@ -1145,10 +1439,15 @@ async function renderCertPanel(){
     return;
   }
 
-  const day = certDay || LabCalCerts.todayIso();
+  const day = certDay || selDay || LabCalCerts.todayIso();
   let list = [], allDays = [];
   try{
     list = await LabCalCerts.listDay(day);
+    // inside a job, show only that job's certificates
+    if(viewMode === 'job'){
+      const ref = certJobFilter === '' ? '' : ((LabCalJobsheet.current()||{}).callNumber || '');
+      list = list.filter(c => (c.jobRef || '') === ref);
+    }
     allDays = await LabCalCerts.days();
   }catch(e){
     setHtml(certPanel, '<div class="job-head"><div><p class="job-title">Certificate list unavailable</p><div class="cert-sub">'+jesc(e.message||e)+'</div></div></div>');
@@ -1369,8 +1668,8 @@ renderOffsetStrip();
 renderCards();
 renderDate();
 if(window.LabCalOffsets){
-  LabCalOffsets.onChange(()=>{ renderOffsetStrip(); renderCards(); renderJobPanel(); });
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ renderOffsetStrip(); renderCards(); renderJobPanel(); } });
+  LabCalOffsets.onChange(()=>{ renderOffsetStrip(); renderCards(); renderCalibrationPage(); });
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ renderOffsetStrip(); renderCards(); renderCalibrationPage(); } });
 }
 </script>
 

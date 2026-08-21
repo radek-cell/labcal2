@@ -1254,11 +1254,13 @@ async function ingest(files){
     else META.customer = titleCase(top);
   }
 
-  let ok=0, bad=0, dayCount=0, logs=0;
+  let ok=0, bad=0, dayCount=0, logs=0, emptyFiles=0, truncated=0;
   const texts = await Promise.all(csvs.map(f=>f.text().catch(()=>null)));
   texts.forEach((tx,i)=>{
-    if(!tx){ bad++; return; }
-    if(!tx.trim()){ emptyFiles++; return; }   // a day the logger wrote nothing to
+    // An empty string is a day the logger wrote nothing to, not a file we
+    // failed to read — only null means the read itself failed.
+    if(tx == null){ bad++; return; }
+    if(!tx.trim()){ emptyFiles++; return; }
     let list=null;
     try{ list = parseFile(tx, csvs[i].name); }catch(e){ list=null; }
     /* an HMI event log is an audit trail, not a trace — hold it until every file is in */

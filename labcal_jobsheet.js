@@ -879,6 +879,52 @@
     return out;
   }
 
+  // Which days did work actually happen on this job? Opened, certified,
+  // marked not required, or corrected — anything the engineer touched.
+  function activeDaysOf(job) {
+    var days = {};
+    var add = function (iso) { if (iso) days[String(iso).slice(0, 10)] = true; };
+    if (!job) return [];
+    add(job.day); add(job.openedAt); add(job.loadedAt);
+    (job.devices || []).forEach(function (d) {
+      add(d.doneAt); add(d.notRequiredAt); add(d.editedAt); add(d.addedAt);
+    });
+    // progress records carry dates for work done before this list was loaded
+    var prog = (progressStore()[String(job.callNumber || '')]) || {};
+    Object.keys(prog).forEach(function (k) {
+      add(prog[k].doneAt); add(prog[k].notRequiredAt);
+    });
+    return Object.keys(days).sort();
+  }
+
+  // Jobs touched on a given day, newest first.
+  function jobsActiveOn(day) {
+    var all = jobsStore();
+    return Object.keys(all).map(function (k) {
+      var j = all[k];
+      var days = activeDaysOf(j);
+      if (days.indexOf(day) === -1) return null;
+      var p = progressOf(j);
+      return {
+        key: k, callNumber: j.callNumber || '', customer: j.customer || '',
+        department: j.department || '', fileName: j.fileName || '',
+        openedAt: j.openedAt || '', firstDay: days[0], lastDay: days[days.length - 1],
+        multiDay: days.length > 1, days: days,
+        total: p.total, done: p.done, notRequired: p.notRequired, outstanding: p.outstanding,
+        started: p.started
+      };
+    }).filter(Boolean).sort(function (a, b) { return (b.openedAt || '') < (a.openedAt || '') ? -1 : 1; });
+  }
+
+  // Every day any job was touched — for marking the calendar.
+  function allActiveDays() {
+    var all = jobsStore(), out = {};
+    Object.keys(all).forEach(function (k) {
+      activeDaysOf(all[k]).forEach(function (d) { out[d] = (out[d] || 0) + 1; });
+    });
+    return out;
+  }
+
   function listJobs() {
     var all = jobsStore();
     return Object.keys(all).map(function (k) {
@@ -1229,6 +1275,9 @@
     setCurrent: setCurrent,
     clearCurrent: clearCurrent,
     listJobs: listJobs,
+    activeDaysOf: activeDaysOf,
+    jobsActiveOn: jobsActiveOn,
+    allActiveDays: allActiveDays,
     jobByRef: jobByRef,
     progressOf: progressOf,
     activeKey: activeKey,
