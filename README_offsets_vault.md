@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.509)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.510)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,31 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.510 — storage can never block the PDF
+
+v1.509 made the PDF wait for the certificate to be filed. That was right in
+principle and wrong in practice: on iPad the storage request can hang
+indefinitely — another tab holding the database, or Safari simply not
+answering — and the PDF then never appeared at all. Generate went grey and
+nothing happened. My fault, and a worse failure than the one it fixed.
+
+Two limits now:
+
+- **Opening the database gives up after 2.5 seconds**, and reports it, instead
+  of leaving everything waiting on it. A locked database says which problem it
+  is: *"Certificate storage is locked by another tab of this site."*
+- **Filing gives up after 2.5 seconds** and the PDF carries on regardless. The
+  hint says *"PDF saved, but certificate storage did not respond… use Find… on
+  the unit if it is missing."*
+
+Healthy storage is unaffected — the write takes milliseconds, so filing still
+happens before the share sheet opens, which is the whole point of v1.509. The
+timeout only matters when something is wrong, and then the PDF wins.
+
+Tested both ways: with working storage the certificate is filed and the PDF
+delivered in about a second; with storage that never answers at all the PDF is
+still delivered and the button comes back.
 
 ## v1.509 — file the certificate before sharing it
 
@@ -1217,13 +1242,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v52**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v53**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v52, then hit **Refresh offline copy**.
+picks up v53, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

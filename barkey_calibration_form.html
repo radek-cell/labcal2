@@ -714,7 +714,7 @@ function fileCertificateForToday(blob, filename){
   if(!window.LabCalCerts){ warn('labcal_certs.js did not load, so it is not on the job list.'); return; }
   if(!LabCalCerts.supported()){ warn('this browser will not store it, so it will not appear on the job list.'); return; }
   const v=id=>{ const el=document.getElementById(id); return el?el.value:''; };
-  return LabCalCerts.add(blob, {
+  const filing = LabCalCerts.add(blob, {
     filename, sheet:'barkey',
     certRef:v('sheetNo'), serial:v('serial'), model:v('model'),
     site:v('site'), jobRef:v('jobRef'),
@@ -725,6 +725,16 @@ function fileCertificateForToday(blob, filename){
     if(!id) warn('it could not be added to the job list' + (LabCalCerts.lastError()? ' — '+LabCalCerts.lastError() : '') + '.');
     return id;
   });
+
+  // Filing must never hold up the PDF. If storage does not answer, carry on
+  // and say so — the engineer can attach it later with Find… on the unit.
+  return Promise.race([
+    filing,
+    new Promise(resolve => setTimeout(() => {
+      warn('certificate storage did not respond, so it may not be on the job list. Use Find… on the unit if it is missing.');
+      resolve(null);
+    }, 2500))
+  ]);
 }
 // ---------------------------------------------------------------------
 // Per-unit snapshot. The worksheet's own autosave holds one unit at a time;

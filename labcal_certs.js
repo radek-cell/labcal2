@@ -39,7 +39,28 @@
     if (!supported()) return Promise.reject(new Error('This browser has no space to keep the day\'s certificates.'));
     if (dbPromise) return dbPromise;
     dbPromise = new Promise(function (resolve, reject) {
+      // iOS can leave an IndexedDB open request pending indefinitely — another
+      // tab holding the database, or Safari simply not answering. Fail after a
+      // few seconds instead of hanging whatever is waiting on it.
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        dbPromise = null;                      // let the next attempt try again
+        reject(new Error('Certificate storage did not respond.'));
+      }, 2500);
+      var done = function (fn) {
+        return function (arg) {
+          if (settled) return;
+          settled = true; clearTimeout(timer); fn(arg);
+        };
+      };
+      resolve = done(resolve); reject = done(reject);
+
       var req = global.indexedDB.open(DB_NAME, DB_VERSION);
+      req.onblocked = function () {
+        reject(new Error('Certificate storage is locked by another tab of this site. Close the other tabs and try again.'));
+      };
       req.onupgradeneeded = function () {
         var db = req.result;
         if (!db.objectStoreNames.contains(STORE)) {
