@@ -268,6 +268,17 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 }
 .ucert.sup{background:var(--bg2);border-color:var(--border);opacity:.7}
 .ucert.missing{background:#fdf3e3;border-color:var(--amber-dim)}
+.findbox{
+  grid-column:1/-1;margin-top:8px;padding:10px 12px;
+  background:var(--bg2);border:1px solid var(--border-soft);border-radius:7px;
+}
+.findnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:6px}
+.findrow{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:6px 0;border-top:1px solid var(--border-soft);
+}
+.fr-name{font-family:var(--mono);font-size:11.5px;font-weight:650}
+.fr-meta{font-family:var(--mono);font-size:10px;color:var(--muted-dim);flex:1}
 .ucert.missing .uc-name{color:#7a4c06;font-weight:600}
 .certnote{
   margin-top:10px;padding:8px 11px;border-radius:6px;font-size:12px;
@@ -542,7 +553,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.506</span>
+    <span id="footYear">v1.507</span>
   </footer>
 
 </div>
@@ -714,7 +725,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.506 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.507 · ' + d.getFullYear();
 }
 
 
@@ -771,6 +782,26 @@ function routingFooter(){
       ${n ? '<button class="jbtn ghost" type="button" id="routeExportBtn">Export routing</button>' : ''}
       ${n ? '<button class="jbtn ghost" type="button" id="routeResetBtn">Reset learned</button>' : ''}
     </div>`;
+}
+
+// What is actually in storage, so a certificate that did not attach itself can
+// be found and put on the right unit rather than argued about.
+function findPickerHtml(d){
+  const taken = {};
+  Object.keys(jobCerts).forEach(k=>jobCerts[k].forEach(c=>{ taken[c.id]=true; }));
+  const list = allCertsCache.filter(c=>!taken[c.id]).slice(0, 40);
+  if(!list.length){
+    return `<div class="findbox"><div class="findnote">Nothing else is in certificate storage on this device — ${allCertsCache.length} certificate${allCertsCache.length===1?'':'s'} in total. The PDF was saved out, but no record of it was kept here.</div></div>`;
+  }
+  return `<div class="findbox">
+    <div class="findnote">${allCertsCache.length} certificate${allCertsCache.length===1?'':'s'} in storage. Pick the one for ${jesc(d.serial || d.model)} and it will be filed against this unit.</div>
+    ${list.map(c=>`
+      <div class="findrow">
+        <span class="fr-name">${jesc(c.certRef || c.filename)}</span>
+        <span class="fr-meta">${jesc(c.serial||'no serial')} · ${jesc(c.jobRef||'no job ref')} · ${jesc(fmtDay(c.day))}</span>
+        <button class="cbtn mini" type="button" data-attach="${c.id}">Use this</button>
+      </div>`).join('')}
+  </div>`;
 }
 
 function bindRoutingFooter(){
@@ -1029,17 +1060,31 @@ function serialKeyOf(v){ return String(v||'').trim().toUpperCase().replace(/[^A-
 
 // The certificates live in IndexedDB, so they have to be fetched before the
 // worklist is drawn — each unit shows its own certificate on its own row.
+let findingIdx = null;   // unit whose 'find certificate' picker is open
+let allCertsCache = [];  // everything in storage, for that picker
 let certLoadNote = '';   // why the certificates could not be read, if they could not
+let certLoadToken = 0;
 async function loadJobCerts(){
-  jobCerts = {}; jobCertsOther = []; certLoadNote = '';
+  // Two of these can be in flight at once — filing a certificate triggers a
+  // refresh while the handler is already reloading — and both were writing
+  // into the same object, so a certificate appeared twice. Build a fresh
+  // result and only publish it if this is still the most recent load.
+  const token = ++certLoadToken;
+  const certs = {}, other = [];
+  let note = '';
+  const publish = () => {
+    if(token !== certLoadToken) return;
+    jobCerts = certs; jobCertsOther = other; certLoadNote = note;
+  };
   const js = LabCalJobsheet.current();
-  if(!js) return;
-  if(!window.LabCalCerts){ certLoadNote = 'labcal_certs.js did not load on this device, so certificates cannot be shown.'; return; }
-  if(!LabCalCerts.supported()){ certLoadNote = 'This browser will not store certificates, so none can be shown here. Private browsing does this.'; return; }
+  if(!js){ publish(); return; }
+  if(!window.LabCalCerts){ note = 'labcal_certs.js did not load on this device, so certificates cannot be shown.'; publish(); return; }
+  if(!LabCalCerts.supported()){ note = 'This browser will not store certificates, so none can be shown here. Private browsing does this.'; publish(); return; }
   try{
     const days = await LabCalCerts.days();
     let all = [];
     for(const d of days) all.push(...await LabCalCerts.listDay(d.day));
+    allCertsCache = all;
     const ref = js.callNumber || '';
 
     // A unit answers to every serial it has ever had: the one on the jobsheet,
@@ -1063,21 +1108,26 @@ async function loadJobCerts(){
       const k = serialKeyOf(c.serial);
       return (c.jobRef||'') === ref || (k && aliasToUnit[k]);
     });
+    const seen = {};
     mine.forEach(c=>{
+      if(seen[c.id]) return;      // one row per certificate, whichever serial matched
+      seen[c.id] = true;
       const k = serialKeyOf(c.serial);
       const unitKey = k && aliasToUnit[k];
       if(unitKey){
         c.__refMismatch = (c.jobRef||'') !== ref;
         c.__serialWas = (k !== unitKey) ? c.serial : '';
-        (jobCerts[unitKey] = jobCerts[unitKey] || []).push(c);
+        (certs[unitKey] = certs[unitKey] || []).push(c);
       }else{
-        jobCertsOther.push(c);
+        other.push(c);
       }
     });
-    Object.keys(jobCerts).forEach(k=>jobCerts[k].sort((a,b)=>a.savedAt<b.savedAt?1:-1));
-    jobCertsOther.sort((a,b)=>a.savedAt<b.savedAt?1:-1);
+    Object.keys(certs).forEach(k=>certs[k].sort((a,b)=>a.savedAt<b.savedAt?1:-1));
+    other.sort((a,b)=>a.savedAt<b.savedAt?1:-1);
+    publish();
   }catch(e){
-    certLoadNote = 'Certificates could not be read: ' + (e && e.message ? e.message : e);
+    note = 'Certificates could not be read: ' + (e && e.message ? e.message : e);
+    publish();
   }
 }
 let askingIdx = null;
@@ -1264,9 +1314,10 @@ function renderJobPanel(){
           // blank row that looks like the page is broken.
           if(d.done && !certLoadNote){
             return `<div class="unitcerts"><span class="ucert missing">
-              <span class="uc-name">${jesc(d.certRef || 'certificate')} not stored on this device</span>
-              <span class="uc-tag">saved out, or storage was full</span>
-            </span></div>`;
+              <span class="uc-name">${jesc(d.certRef || 'certificate')} not on file for this unit</span>
+              <button class="cbtn mini" type="button" data-find="${i}">Find…</button>
+            </span></div>`
+            + (findingIdx === i ? findPickerHtml(d) : '');
           }
           return '';
         }
@@ -1471,6 +1522,27 @@ function renderJobPanel(){
       LabCalJobsheet.removeDevice(i);
       removingIdx = null;
       jobToast = {text:`${label} removed from this job.`};
+      renderJobPanel();
+    }));
+
+    jobPanel.querySelectorAll('[data-find]').forEach(b=>b.addEventListener('click',()=>{
+      const i = Number(b.getAttribute('data-find'));
+      findingIdx = (findingIdx === i) ? null : i;
+      renderJobPanel();
+    }));
+    jobPanel.querySelectorAll('[data-attach]').forEach(b=>b.addEventListener('click', async ()=>{
+      const id = Number(b.getAttribute('data-attach'));
+      const js2 = LabCalJobsheet.current();
+      const d2 = js2.devices[findingIdx];
+      if(!d2) return;
+      try{
+        await LabCalCerts.refile(id, { serial: d2.serial, jobRef: js2.callNumber || '', sheet: d2.sheet || '' });
+        findingIdx = null;
+        jobToast = {text:`Certificate filed against ${d2.serial || d2.model}.`};
+      }catch(e){
+        jobToast = {text:'Could not re-file that certificate: '+(e&&e.message?e.message:e), bad:true};
+      }
+      await loadJobCerts();
       renderJobPanel();
     }));
 

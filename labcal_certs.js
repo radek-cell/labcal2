@@ -144,6 +144,24 @@
       .then(function (id) { announce(); return id; });
   }
 
+  // Re-file a certificate against a different unit or job. Used when a
+  // certificate ends up recorded with details that do not match the unit it
+  // belongs to; the values it was filed under are kept alongside.
+  function refile(id, patch) {
+    return tx('readwrite').then(function (os) {
+      return wrap(os.get(id)).then(function (rec) {
+        if (!rec) throw new Error('That certificate is no longer in storage.');
+        if (rec.origSerial === undefined) rec.origSerial = rec.serial || '';
+        if (rec.origJobRef === undefined) rec.origJobRef = rec.jobRef || '';
+        if (patch.serial !== undefined) rec.serial = patch.serial;
+        if (patch.jobRef !== undefined) rec.jobRef = patch.jobRef;
+        if (patch.sheet !== undefined) rec.sheet = patch.sheet;
+        rec.refiledAt = new Date().toISOString();
+        return wrap(os.put(rec));
+      });
+    }).then(function (r) { announce(); return r; });
+  }
+
   function remove(id) {
     return tx('readwrite')
       .then(function (os) { return wrap(os.delete(id)); })
@@ -332,6 +350,8 @@
     todayIso: todayIso,
     add: add,
     addRestored: addRestored,
+    refile: refile,
+    all: all,
     get: get,
     remove: remove,
     clearDay: clearDay,

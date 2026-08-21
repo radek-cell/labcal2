@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.506)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.507)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,28 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.507 — find a certificate and put it on its unit
+
+A certificate that does not attach itself now has a **Find…** button on the
+unit's amber chip. It lists everything actually in certificate storage — number,
+serial, job reference and date — so you can see whether the record exists at all,
+and **Use this** files it against that unit.
+
+That answers the question the screen could not before. If the list is empty it
+says so plainly: *"Nothing else is in certificate storage on this device — the
+PDF was saved out, but no record of it was kept here."* If the record is there
+with details that do not match, one tap fixes it.
+
+Re-filing keeps what the certificate was originally filed under, so nothing is
+lost by correcting it.
+
+### A bug found while testing this
+
+Attaching a certificate showed it **twice**. Filing it triggers a refresh while
+the handler is already reloading, and both loads were writing into the same
+object. The load now builds its result separately and only publishes it if it is
+still the most recent — the last write wins instead of two interleaving.
 
 ## v1.506 — a corrected serial no longer strands its certificate
 
@@ -1144,13 +1166,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v49**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v50**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v49, then hit **Refresh offline copy**.
+picks up v50, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
