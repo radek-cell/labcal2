@@ -1838,7 +1838,7 @@ function fileCertificateForToday(blob, filename){
   if(!window.LabCalCerts){ warn('labcal_certs.js did not load, so it is not on the job list.'); return; }
   if(!LabCalCerts.supported()){ warn('this browser will not store it, so it will not appear on the job list.'); return; }
   const v=id=>{ const el=document.getElementById(id); return el?el.value:''; };
-  LabCalCerts.add(blob, {
+  return LabCalCerts.add(blob, {
     filename, sheet:'snmd',
     certRef:v('certNo'), serial:v('serial'), model:v('model'),
     site:v('site'), jobRef:v('jobRef'),
@@ -1847,6 +1847,7 @@ function fileCertificateForToday(blob, filename){
     unitUid: (window.LabCalJobsheet && LabCalJobsheet.link && (LabCalJobsheet.link()||{}).uid) || ''
   }).then(id=>{
     if(!id) warn('it could not be added to the job list' + (LabCalCerts.lastError()? ' — '+LabCalCerts.lastError() : '') + '.');
+    return id;
   });
 }
 // ---------------------------------------------------------------------
@@ -1941,12 +1942,16 @@ async function generateVectorPDF(){
     if(!runPreGenerationChecks()) return true;
     const blob=LabCalVectorPdf.blobSNMD();
     reportPdfSize(blob.size);
+    // File it FIRST, and wait for the write to commit. Sharing opens the iOS
+    // share sheet and waits on the engineer; leaving the page during that
+    // used to abort the storage write, so the certificate never reached the
+    // job list even though the PDF was saved.
+    saveUnitSnapshot();
+    saveToJobList(true);
+    await fileCertificateForToday(blob, filename);
+    markJobsheetDone();
     if(window.LabCalSave){ await LabCalSave.deliver(blob, filename); }
     else { downloadBlob(blob,filename); }
-    saveUnitSnapshot();
-    fileCertificateForToday(blob, filename);
-    saveToJobList(true);
-    markJobsheetDone();
     return true;
   }catch(err){
     console.error('Vector PDF failed, falling back to the image version:', err);
@@ -1997,12 +2002,16 @@ async function generatePDF(){
     // the file goes to the iOS share sheet where "Save to Files" can pick the
     // folder. Plain download everywhere else. See labcal_save.js.
     reportPdfSize(blob.size);
+    // File it FIRST, and wait for the write to commit. Sharing opens the iOS
+    // share sheet and waits on the engineer; leaving the page during that
+    // used to abort the storage write, so the certificate never reached the
+    // job list even though the PDF was saved.
+    saveUnitSnapshot();
+    saveToJobList(true);
+    await fileCertificateForToday(blob, filename);
+    markJobsheetDone();
     if(window.LabCalSave){ await LabCalSave.deliver(blob, filename); }
     else { downloadBlob(blob,filename); }
-    saveUnitSnapshot();
-    fileCertificateForToday(blob, filename);
-    saveToJobList(true);
-    markJobsheetDone();
   }catch(err){
     alert('PDF generation failed: '+(err && err.message ? err.message : err));
   }finally{

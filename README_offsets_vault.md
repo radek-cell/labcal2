@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.508)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.509)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,31 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.509 — file the certificate before sharing it
+
+**This is the one that was losing certificates.** The order was:
+
+    generate → share (iOS share sheet) → file it → mark the unit done
+
+The share sheet waits for the engineer. If you saved the PDF and then left the
+page — tapped Back, switched tabs, went to the next unit — the storage write was
+still pending and iOS abandoned it. The PDF was safely saved; the record of it
+was not. That is why 27 certificates were in storage but the one just made was
+missing, and why it failed *sometimes* rather than always: it depended entirely
+on what you did next.
+
+The order is now:
+
+    generate → file it and WAIT for the write → mark done → share
+
+By the time the share sheet opens, the certificate is already on the job. Leaving
+the page at any point after that cannot lose it.
+
+Applied to all five worksheets, on both the text and image paths.
+
+Tested with a share sheet that never returns at all: the certificate is still
+filed, still carries its unit id, and still appears on the unit's row.
 
 ## v1.508 — certificates linked by unit, not by serial
 
@@ -1192,13 +1217,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v51**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v52**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v51, then hit **Refresh offline copy**.
+picks up v52, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
