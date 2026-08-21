@@ -293,10 +293,25 @@
   // Staple every certificate from a day into one PDF, in the order produced.
   // cover: an optional Blob placed in front of the certificates — used for the
   // job summary, so a merged job opens on the list of what was done.
-  function mergeDay(day, onProgress, jobRef, cover) {
+  // opts.latestOnly: one certificate per unit — the newest. A pack sent to a
+  // customer should carry the current certificate for each unit, not the
+  // superseded ones as well.
+  function mergeDay(day, onProgress, jobRef, cover, opts) {
     var want = day || todayIso();
+    opts = opts || {};
     return Promise.all([listDay(want, jobRef), loadPdfLib()]).then(function (res) {
       var list = res[0], PDFLib = res[1];
+      if (opts.latestOnly) {
+        var newest = {};
+        list.forEach(function (c) {
+          var key = c.unitUid || ('s:' + String(c.serial || '').toUpperCase().replace(/[^A-Z0-9]/g, '')) || ('id:' + c.id);
+          var prev = newest[key];
+          if (!prev || String(c.savedAt || '') > String(prev.savedAt || '')) newest[key] = c;
+        });
+        var keep = {};
+        Object.keys(newest).forEach(function (k) { keep[newest[k].id] = true; });
+        list = list.filter(function (c) { return keep[c.id]; });
+      }
       if (!list.length) throw new Error('There are no certificates to merge for that job.');
       return PDFLib.PDFDocument.create().then(function (out) {
         function addCover() {

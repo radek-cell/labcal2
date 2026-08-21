@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.510)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.512)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,47 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.512 — the filename as a last resort
+
+A certificate is matched to its unit in this order:
+
+1. **Unit id** — assigned once, never changes. Nothing typed afterwards breaks it.
+2. **Serial** — including every serial that unit has had.
+3. **Job reference**.
+4. **Filename** — new. The name is built from the serial and job number, so a
+   certificate filed with an empty serial field often still carries it there.
+
+The filename is deliberately last. It is made of exactly the things that get
+corrected, so it is the weakest of the four — but it costs nothing and it
+rescues records that would otherwise have nothing to match on. A match needs at
+least four characters, so a short or blank serial cannot sweep up another unit's
+certificate.
+
+Tested with the worst case — no unit id, no serial, no job reference, only a
+filename — and the certificate found its unit while a second unit on the same
+job did not claim it.
+
+### What is not possible
+
+Remembering **where the PDF was saved** cannot be done on iPad. When a file goes
+through the iOS share sheet, Safari never tells the page where it went — no
+path, and no permission to read it back later. Desktop Chrome does have an API
+that returns a durable handle, but iOS Safari does not support it, so it would
+work on the laptop and not on the device the work actually happens on.
+
+## v1.511 — the current certificate leads
+
+**Merge job & share now takes one certificate per unit — the newest.** A pack
+going to a customer should carry the current certificate for each unit, not the
+superseded ones alongside it.
+
+**On the unit's row**, only the current certificate is shown. Earlier ones fold
+behind a small **+2 earlier** button and appear struck through when expanded.
+
+They are still kept, not deleted. A superseded certificate may already have been
+emailed to a customer, and a version that once left the building is worth being
+able to look at. But it is out of the way, and out of the pack.
 
 ## v1.510 — storage can never block the PDF
 
@@ -1242,13 +1283,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v53**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v55**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v53, then hit **Refresh offline copy**.
+picks up v55, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

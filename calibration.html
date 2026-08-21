@@ -553,7 +553,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.510</span>
+    <span id="footYear">v1.512</span>
   </footer>
 
 </div>
@@ -725,7 +725,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.510 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.512 · ' + d.getFullYear();
 }
 
 
@@ -1060,6 +1060,7 @@ function serialKeyOf(v){ return String(v||'').trim().toUpperCase().replace(/[^A-
 
 // The certificates live in IndexedDB, so they have to be fetched before the
 // worklist is drawn — each unit shows its own certificate on its own row.
+let earlierOpen = {};    // units showing their superseded certificates
 let findingIdx = null;   // unit whose 'find certificate' picker is open
 let allCertsCache = [];  // everything in storage, for that picker
 let certLoadNote = '';   // why the certificates could not be read, if they could not
@@ -1111,17 +1112,33 @@ async function loadJobCerts(){
     // Belt and braces: a certificate belongs to this job if it carries the job
     // reference OR its serial matches one of this job's units under any of
     // that unit's serials.
+    // Last resort: the filename. It is built from the serial and job number,
+    // so when a certificate was filed with an empty serial field the filename
+    // often still carries it. Weaker than the unit id — a filename is made of
+    // the very things that get corrected — so it is only consulted when
+    // nothing better matches.
+    const byFilename = c => {
+      const name = serialKeyOf(c.filename);
+      if(!name) return '';
+      let hit = '';
+      Object.keys(aliasToUnit).forEach(alias=>{
+        if(alias.length >= 4 && name.indexOf(alias) !== -1) hit = aliasToUnit[alias];
+      });
+      return hit;
+    };
+
     const mine = all.filter(c=>{
       if(c.unitUid && uidToUnit[c.unitUid]) return true;
       const k = serialKeyOf(c.serial);
-      return (c.jobRef||'') === ref || (k && aliasToUnit[k]);
+      if((c.jobRef||'') === ref || (k && aliasToUnit[k])) return true;
+      return !!byFilename(c);
     });
     const seen = {};
     mine.forEach(c=>{
       if(seen[c.id]) return;      // one row per certificate, whichever serial matched
       seen[c.id] = true;
       const k = serialKeyOf(c.serial);
-      const unitKey = (c.unitUid && uidToUnit[c.unitUid]) || (k && aliasToUnit[k]);
+      const unitKey = (c.unitUid && uidToUnit[c.unitUid]) || (k && aliasToUnit[k]) || byFilename(c);
       if(unitKey){
         c.__refMismatch = (c.jobRef||'') !== ref;
         c.__serialWas = (k !== unitKey) ? c.serial : '';
@@ -1329,7 +1346,11 @@ function renderJobPanel(){
           }
           return '';
         }
-        return `<div class="unitcerts">` + list.map(c=>`
+        const current = list[0];
+        const earlier = list.slice(1);
+        const showAll = earlierOpen[serialKeyOf(d.serial)];
+        const visible = showAll ? list : [current];
+        return `<div class="unitcerts">` + visible.map(c=>`
           <span class="ucert${c.superseded?' sup':''}">
             <span class="uc-name">${jesc(c.certRef || c.filename)}</span>
             ${c.superseded?'<span class="uc-tag">superseded</span>':''}
@@ -1337,7 +1358,9 @@ function renderJobPanel(){
             ${c.__serialWas?`<span class="uc-tag" title="Issued before the serial was corrected">as ${jesc(c.__serialWas)}</span>`:''}
             <button class="cbtn mini" type="button" data-cview="${c.id}">View</button>
             <button class="cbtn mini" type="button" data-cshare="${c.id}">Share</button>
-          </span>`).join('') + `</div>`;
+          </span>`).join('')
+          + (earlier.length ? `<button class="cbtn mini" type="button" data-earlier="${serialKeyOf(d.serial)}">${showAll?'Hide':'+'+earlier.length} earlier</button>` : '')
+          + `</div>`;
       })()}
       ${askingIdx === i ? `
       <div class="inline-ask">
@@ -1533,6 +1556,11 @@ function renderJobPanel(){
       renderJobPanel();
     }));
 
+    jobPanel.querySelectorAll('[data-earlier]').forEach(b=>b.addEventListener('click',()=>{
+      const k=b.getAttribute('data-earlier');
+      earlierOpen[k] = !earlierOpen[k];
+      renderJobPanel();
+    }));
     jobPanel.querySelectorAll('[data-find]').forEach(b=>b.addEventListener('click',()=>{
       const i = Number(b.getAttribute('data-find'));
       findingIdx = (findingIdx === i) ? null : i;
@@ -1586,7 +1614,8 @@ function renderJobPanel(){
         for(const dd of days){
           const list = await LabCalCerts.listDay(dd.day, ref);
           if(!list.length) continue;
-          merged = await LabCalCerts.mergeDay(dd.day, (n,t)=>{ mergeBtn.textContent = `Merging ${n}/${t}…`; }, ref, cover);
+          // one certificate per unit, the current one
+          merged = await LabCalCerts.mergeDay(dd.day, (n,t)=>{ mergeBtn.textContent = `Merging ${n}/${t}…`; }, ref, cover, {latestOnly:true});
           cover = null;   // only on the first day's file
           break;          // certificates for a job are merged per day
         }
