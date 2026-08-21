@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.501)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.502)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,26 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.502 — a job is one page
+
+The certificates panel is gone from the job view. **Each unit now carries its own
+certificate on its own row** — a green chip with the certificate number and
+**View** and **Share**. A superseded one sits beside it, struck through and
+labelled, so an amended unit shows both.
+
+Everything else about the row is unchanged: Open, Reopen, ✕ not required, Edit,
+the tags and the search all work as before.
+
+**One file from one place.** **Merge job & share** is now in the job header
+beside **Job summary PDF**. It produces the summary followed by every
+certificate on the job.
+
+Certificates belonging to the job but matching no unit — usually a serial
+corrected after the certificate was issued — are listed under **Other
+certificates for this job** rather than disappearing.
+
+**The calendar opens on the month**, with **Two weeks** to fold it down.
 
 ## v1.501 — tidier calibration page
 
@@ -1036,13 +1056,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v44**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v45**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v44, then hit **Refresh offline copy**.
+picks up v45, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

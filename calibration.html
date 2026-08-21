@@ -261,6 +261,17 @@ h1{font-size:clamp(28px,4vw,42px);line-height:1.1;margin:0 0 14px;font-weight:70
 .jdev-tag.added{border:1px solid var(--cyan);color:var(--cyan)}
 .jdev-tag.notreq{border:1px solid #c0392b;color:#c0392b}
 .jdev-tag.edited{border:1px solid #7a5cc4;color:#5f45a3}
+.unitcerts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.ucert{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#eef7f1;border:1px solid var(--green);border-radius:6px;padding:4px 6px 4px 9px;
+}
+.ucert.sup{background:var(--bg2);border-color:var(--border);opacity:.7}
+.uc-name{font-family:var(--mono);font-size:11px;font-weight:650;color:#20603a}
+.ucert.sup .uc-name{color:var(--muted-dim);text-decoration:line-through}
+.uc-tag{font-family:var(--mono);font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--amber)}
+.othercerts{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.othercerts h5{margin:0 0 6px;font-size:12px;font-weight:650;letter-spacing:-.1px}
 .jdev.notreq{opacity:.55}
 .jdev.notreq .jdev-model{text-decoration:line-through}
 .jbtn.mini{padding:7px 10px;font-size:11.5px}
@@ -520,7 +531,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.501</span>
+    <span id="footYear">v1.502</span>
   </footer>
 
 </div>
@@ -692,7 +703,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.501 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.502 · ' + d.getFullYear();
 }
 
 
@@ -779,7 +790,7 @@ const dayPanel = document.getElementById('dayPanel');
 let viewMode = 'day';                 // 'day' | 'job'
 let selDay = null;                    // YYYY-MM-DD
 let calMonth = null;                  // first of the month shown
-let calExpanded = false;              // week strip vs full month
+let calExpanded = true;               // full month by default; Two weeks folds it
 
 function isoDay(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fromIso(s){ const p=String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
@@ -985,13 +996,49 @@ async function renderCalibrationPage(){
   }else{
     if(dp) dp.style.display='none';
     if(jp) jp.style.display='';
-    if(cp) cp.style.display='';
-    renderJobPanel();
-    await renderCertPanel();
+    // Certificates now sit on their unit's row inside the worklist. The old
+    // panel is only used for the "no job reference" case.
+    const orphanView = certJobFilter === '';
+    if(cp) cp.style.display = orphanView ? '' : 'none';
+    if(orphanView){
+      if(jp) jp.style.display='none';
+      await renderCertPanel();
+    }else{
+      await loadJobCerts();
+      renderJobPanel();
+    }
   }
 }
 
 let jobFilter = '';
+let jobCerts = {};        // serialKey -> [certificate records] for the open job
+let jobCertsOther = [];   // certificates for this job that match no unit
+
+function serialKeyOf(v){ return String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''); }
+
+// The certificates live in IndexedDB, so they have to be fetched before the
+// worklist is drawn — each unit shows its own certificate on its own row.
+async function loadJobCerts(){
+  jobCerts = {}; jobCertsOther = [];
+  const js = LabCalJobsheet.current();
+  if(!js || !window.LabCalCerts || !LabCalCerts.supported()) return;
+  try{
+    const days = await LabCalCerts.days();
+    let all = [];
+    for(const d of days) all.push(...await LabCalCerts.listDay(d.day));
+    const ref = js.callNumber || '';
+    const mine = all.filter(c => (c.jobRef||'') === ref);
+    const known = {};
+    (js.devices||[]).forEach(d=>{ if(d.serial) known[serialKeyOf(d.serial)] = true; });
+    mine.forEach(c=>{
+      const k = serialKeyOf(c.serial);
+      if(k && known[k]){ (jobCerts[k] = jobCerts[k] || []).push(c); }
+      else jobCertsOther.push(c);
+    });
+    Object.keys(jobCerts).forEach(k=>jobCerts[k].sort((a,b)=>a.savedAt<b.savedAt?1:-1));
+    jobCertsOther.sort((a,b)=>a.savedAt<b.savedAt?1:-1);
+  }catch(e){ /* the worklist still works without them */ }
+}
 let askingIdx = null;
 let editingIdx = null;    // which row is being corrected      // which row is showing its inline "not required?" ask
 let removingIdx = null;    // which row is showing its inline remove confirm
@@ -1169,6 +1216,17 @@ function renderJobPanel(){
           <button class="jbtn ghost mini" type="button" data-ask-cancel="1">Cancel</button>
         </div>
       </div>` : ''}
+      ${(function(){
+        const list = jobCerts[serialKeyOf(d.serial)] || [];
+        if(!list.length) return '';
+        return `<div class="unitcerts">` + list.map(c=>`
+          <span class="ucert${c.superseded?' sup':''}">
+            <span class="uc-name">${jesc(c.certRef || c.filename)}</span>
+            ${c.superseded?'<span class="uc-tag">superseded</span>':''}
+            <button class="cbtn mini" type="button" data-cview="${c.id}">View</button>
+            <button class="cbtn mini" type="button" data-cshare="${c.id}">Share</button>
+          </span>`).join('') + `</div>`;
+      })()}
       ${askingIdx === i ? `
       <div class="inline-ask">
         <span class="q">Not required —</span>
@@ -1195,7 +1253,8 @@ function renderJobPanel(){
         <div class="job-sub">${meta}</div>
       </div>
       <div class="job-actions">
-        <button class="jbtn" type="button" id="jobSummaryBtn">Job summary PDF</button>
+        <button class="jbtn" type="button" id="jobMergeBtn">Merge job &amp; share</button>
+        <button class="jbtn ghost" type="button" id="jobSummaryBtn">Job summary PDF</button>
         <button class="jbtn ghost" type="button" id="jobReplaceBtn">Replace</button>
         <button class="jbtn ghost" type="button" id="jobClearBtn">Clear</button>
       </div>
@@ -1222,6 +1281,17 @@ function renderJobPanel(){
     </div>
     ${rows}
     ${filter && !shown.length ? '<div class="jdev"><div class="jdev-main"><div class="jdev-meta">No unit matches that search.</div></div></div>' : ''}
+    ${jobCertsOther.length ? `
+    <div class="othercerts">
+      <h5>Other certificates for this job — ${jobCertsOther.length}</h5>
+      <div class="unitcerts">${jobCertsOther.map(c=>`
+        <span class="ucert${c.superseded?' sup':''}">
+          <span class="uc-name">${jesc(c.certRef || c.filename)}</span>
+          <span class="uc-tag">${jesc(c.serial||'no serial')}</span>
+          <button class="cbtn mini" type="button" data-cview="${c.id}">View</button>
+          <button class="cbtn mini" type="button" data-cshare="${c.id}">Share</button>
+        </span>`).join('')}</div>
+    </div>` : ''}
     ${routingFooter()}`;
 
   if(setHtml(jobPanel, html)){
@@ -1349,6 +1419,54 @@ function renderJobPanel(){
       jobToast = {text:`${label} removed from this job.`};
       renderJobPanel();
     }));
+
+    jobPanel.querySelectorAll('[data-cview]').forEach(b=>b.addEventListener('click', async ()=>{
+      const rec = await LabCalCerts.get(Number(b.getAttribute('data-cview')));
+      if(!rec) return;
+      const url = URL.createObjectURL(rec.blob);
+      window.open(url, '_blank');
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    }));
+    jobPanel.querySelectorAll('[data-cshare]').forEach(b=>b.addEventListener('click', async ()=>{
+      const rec = await LabCalCerts.get(Number(b.getAttribute('data-cshare')));
+      if(rec && window.LabCalSave) await LabCalSave.deliver(rec.blob, rec.filename);
+    }));
+
+    const mergeBtn = document.getElementById('jobMergeBtn');
+    if(mergeBtn) mergeBtn.addEventListener('click', async ()=>{
+      const js2 = LabCalJobsheet.current();
+      const ref = js2 ? (js2.callNumber||'') : '';
+      const label = mergeBtn.textContent;
+      mergeBtn.disabled = true;
+      try{
+        // one file per job: the summary first, then every certificate behind it
+        let cover = null;
+        try{
+          if(window.LabCalVectorPdf && window.jspdf && js2 && js2.devices.length){
+            cover = LabCalVectorPdf.blobJobSummary(js2, LabCalJobsheet.progressOf(js2));
+          }
+        }catch(e){ console.warn('Summary cover not built:', e); }
+
+        const days = await LabCalCerts.days();
+        let merged = null;
+        for(const dd of days){
+          const list = await LabCalCerts.listDay(dd.day, ref);
+          if(!list.length) continue;
+          merged = await LabCalCerts.mergeDay(dd.day, (n,t)=>{ mergeBtn.textContent = `Merging ${n}/${t}…`; }, ref, cover);
+          cover = null;   // only on the first day's file
+          break;          // certificates for a job are merged per day
+        }
+        if(!merged){ jobToast={text:'No certificates on this job yet.', bad:true}; renderJobPanel(); return; }
+        const name = LabCalCerts.mergedFileName(LabCalCerts.todayIso(), ref);
+        if(window.LabCalSave) await LabCalSave.deliver(merged.blob, name);
+        jobToast = {text:`Merged ${merged.count} certificate${merged.count===1?'':'s'}${merged.cover?' behind the job summary':''}.`};
+      }catch(err){
+        jobToast = {text:'Could not merge: '+(err&&err.message?err.message:err), bad:true};
+      }finally{
+        mergeBtn.disabled = false; mergeBtn.textContent = label;
+        renderJobPanel();
+      }
+    });
 
     const sumBtn = document.getElementById('jobSummaryBtn');
     if(sumBtn) sumBtn.addEventListener('click', async ()=>{
