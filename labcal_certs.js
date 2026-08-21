@@ -80,6 +80,7 @@
       site: meta.site || '',
       jobRef: meta.jobRef || '',
       sheet: meta.sheet || '',
+      unitUid: meta.unitUid || '',   // the permanent link to its unit
       size: blob && blob.size ? blob.size : 0,
       blob: blob
     };
@@ -156,6 +157,7 @@
         if (patch.serial !== undefined) rec.serial = patch.serial;
         if (patch.jobRef !== undefined) rec.jobRef = patch.jobRef;
         if (patch.sheet !== undefined) rec.sheet = patch.sheet;
+        if (patch.unitUid !== undefined) rec.unitUid = patch.unitUid;
         rec.refiledAt = new Date().toISOString();
         return wrap(os.put(rec));
       });

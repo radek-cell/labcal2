@@ -578,6 +578,14 @@
   // whenever that jobsheet is loaded again.
   function progressStore() { return readJson(KEY_PROGRESS, {}) || {}; }
 
+  // Every unit gets a permanent id the moment it joins a job. Certificates are
+  // filed against this, not against the serial — a serial can be corrected, a
+  // certificate number can repeat (S 00000 on a verification sheet), and a job
+  // reference can be mistyped. The id never changes, so the link never breaks.
+  function newUid() {
+    return 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
   function serialKey(serial) {
     return String(serial || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   }
@@ -626,6 +634,7 @@
     var js = current();
     if (!js) return null;
     var entry = {
+      uid: newUid(),
       model: String(device.model || '').trim(),
       equipment: '',
       serial: String(device.serial || '').trim(),
@@ -642,7 +651,7 @@
 
     var s2 = suggestSheet(entry);
     js.devices.push({
-      idx: js.devices.length,
+      idx: js.devices.length, uid: entry.uid,
       model: entry.model, equipment: '', serial: entry.serial, location: entry.location,
       sheet: s2.sheet, sheetWhy: s2.why, suggested: s2.sheet,
       done: false, doneAt: '', certRef: '', addedManually: true
@@ -730,7 +739,7 @@
         var ex = extraStore();
         var list = (ex[String(js.callNumber || '')] || []).map(function (x) {
           if (serialKey(x.serial) === oldKey) {
-            return { model: d.model, equipment: '', serial: newSerial, location: d.location,
+            return { uid: d.uid, model: d.model, equipment: '', serial: newSerial, location: d.location,
                      addedManually: true, addedAt: x.addedAt };
           }
           return x;
@@ -818,7 +827,17 @@
   }
 
   // Fold the stored progress into the loaded worklist.
+  // Jobs saved before unit ids existed get one now, once.
+  function ensureUids() {
+    var js = readJson(KEY_CURRENT, null);
+    if (!js || !js.devices) return;
+    var changed = false;
+    js.devices.forEach(function (d) { if (!d.uid) { d.uid = newUid(); changed = true; } });
+    if (changed) { writeJson(KEY_CURRENT, js); saveActiveJob(); }
+  }
+
   function applyProgressToCurrent() {
+    ensureUids();
     var js = current();
     if (!js) return false;
     var prog = progressFor(js.callNumber);
@@ -1025,6 +1044,7 @@
           sheet: s.sheet,
           sheetWhy: s.why,
           suggested: s.sheet,
+          uid: newUid(),
           done: false,
           doneAt: '',
           certRef: ''
@@ -1064,6 +1084,7 @@
         if (!was) return d;
         delete bySerial[k];
         // keep everything the engineer has decided about this unit
+        d.uid = was.uid || d.uid;      // the unit keeps the id it already had
         d.sheet = was.sheet || d.sheet;
         d.sheetWhy = was.sheetWhy || d.sheetWhy;
         d.done = was.done; d.doneAt = was.doneAt; d.certRef = was.certRef;
@@ -1091,7 +1112,7 @@
       if (already) return;
       var sx = suggestSheet(x);
       js.devices.push({
-        idx: js.devices.length,
+        idx: js.devices.length, uid: x.uid || newUid(),
         model: x.model, equipment: '', serial: x.serial, location: x.location,
         sheet: sx.sheet, sheetWhy: sx.why, suggested: sx.sheet,
         done: false, doneAt: '', certRef: '', addedManually: true
@@ -1175,7 +1196,7 @@
       }
     };
     writeJson(KEY_HANDOFF, payload);
-    setLink({ jobRef: js.callNumber, serial: d.serial });
+    setLink({ jobRef: js.callNumber, serial: d.serial, uid: d.uid || '' });
     if (d.sheet) learnRoute(d.model, d.sheet, d.suggested);
     return payload;
   }
@@ -1215,11 +1236,16 @@
     if (!js) return null;
     var idx = -1;
     js.devices.forEach(function (d, i) {
-      if (idx === -1 && serialKey(d.serial) === serialKey(l.serial)) idx = i;
+      if (idx === -1 && l.uid && d.uid === l.uid) idx = i;
     });
+    if (idx === -1) {
+      js.devices.forEach(function (d, i) {
+        if (idx === -1 && serialKey(d.serial) === serialKey(l.serial)) idx = i;
+      });
+    }
     if (idx === -1) return null;
     var d = editDevice(idx, patch);
-    if (d) setLink({ jobRef: l.jobRef, serial: d.serial });
+    if (d) setLink({ jobRef: l.jobRef, serial: d.serial, uid: d.uid || l.uid || '' });
     return d;
   }
 
@@ -1314,6 +1340,7 @@
     handoff: handoff,
     handoffUnit: handoffUnit,
     setLink: setLink,
+    newUid: newUid,
     link: link,
     syncFromWorksheet: syncFromWorksheet,
     takeHandoff: takeHandoff,

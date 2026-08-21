@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.507)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.508)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,32 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.508 — certificates linked by unit, not by serial
+
+The redesign. Every one of the "certificate not showing" faults came from the
+same weakness: certificates were matched to units by **serial number**, which is
+precisely the thing that gets corrected, mistyped or repeated.
+
+**Every unit now gets a permanent id** the moment it joins a job — read from a
+jobsheet or added on site. Opening it hands that id to the worksheet, and the
+certificate is filed against it.
+
+The id never changes. So the link survives:
+
+- correcting the serial, model or location afterwards
+- a certificate number that repeats — `S 00000` on a verification sheet
+- a mistyped or missing job reference
+- reloading the same jobsheet the next day
+
+Tested by breaking every old link at once: a certificate issued as `S 00000`,
+then the unit's serial, model **and** location all changed to something
+completely different. The certificate stayed on its unit. A second unit added
+afterwards did not pick it up.
+
+Serial matching is still there as a fallback for certificates issued before this
+release, and **Find…** remains for anything that still needs attaching by hand —
+attaching now writes the unit id, so it stays attached from then on.
 
 ## v1.507 — find a certificate and put it on its unit
 
@@ -1166,13 +1192,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v50**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v51**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v50, then hit **Refresh offline copy**.
+picks up v51, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 

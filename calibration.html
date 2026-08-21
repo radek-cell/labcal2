@@ -553,7 +553,7 @@ footer{
 
   <footer>
     <span>LabCal Calibration Suite · offline worksheet toolkit</span>
-    <span id="footYear">v1.507</span>
+    <span id="footYear">v1.508</span>
   </footer>
 
 </div>
@@ -725,7 +725,7 @@ function renderDate(){
   const d = new Date();
   const opts = {day:'2-digit', month:'short', year:'numeric'};
   document.getElementById('todayDate').textContent = d.toLocaleDateString('en-GB', opts).toUpperCase();
-  document.getElementById('footYear').textContent = 'v1.507 · ' + d.getFullYear();
+  document.getElementById('footYear').textContent = 'v1.508 · ' + d.getFullYear();
 }
 
 
@@ -1087,7 +1087,14 @@ async function loadJobCerts(){
     allCertsCache = all;
     const ref = js.callNumber || '';
 
-    // A unit answers to every serial it has ever had: the one on the jobsheet,
+    // First choice: the unit id recorded on the certificate. That link cannot
+    // be broken by correcting a serial, reusing a certificate number or
+    // mistyping a job reference.
+    const uidToUnit = {};
+    (js.devices||[]).forEach(d=>{ if(d.uid) uidToUnit[d.uid] = serialKeyOf(d.serial) || d.uid; });
+
+    // Fallback for certificates issued before unit ids existed:
+    // a unit answers to every serial it has ever had: the one on the jobsheet,
     // any it was corrected from, and its current one. A certificate issued
     // before a correction still belongs to that unit — matching only on the
     // current serial left it stranded, showing as "not stored on this device".
@@ -1105,6 +1112,7 @@ async function loadJobCerts(){
     // reference OR its serial matches one of this job's units under any of
     // that unit's serials.
     const mine = all.filter(c=>{
+      if(c.unitUid && uidToUnit[c.unitUid]) return true;
       const k = serialKeyOf(c.serial);
       return (c.jobRef||'') === ref || (k && aliasToUnit[k]);
     });
@@ -1113,7 +1121,7 @@ async function loadJobCerts(){
       if(seen[c.id]) return;      // one row per certificate, whichever serial matched
       seen[c.id] = true;
       const k = serialKeyOf(c.serial);
-      const unitKey = k && aliasToUnit[k];
+      const unitKey = (c.unitUid && uidToUnit[c.unitUid]) || (k && aliasToUnit[k]);
       if(unitKey){
         c.__refMismatch = (c.jobRef||'') !== ref;
         c.__serialWas = (k !== unitKey) ? c.serial : '';
@@ -1536,7 +1544,7 @@ function renderJobPanel(){
       const d2 = js2.devices[findingIdx];
       if(!d2) return;
       try{
-        await LabCalCerts.refile(id, { serial: d2.serial, jobRef: js2.callNumber || '', sheet: d2.sheet || '' });
+        await LabCalCerts.refile(id, { serial: d2.serial, jobRef: js2.callNumber || '', sheet: d2.sheet || '', unitUid: d2.uid || '' });
         findingIdx = null;
         jobToast = {text:`Certificate filed against ${d2.serial || d2.model}.`};
       }catch(e){

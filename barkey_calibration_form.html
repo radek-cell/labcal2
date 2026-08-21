@@ -717,7 +717,10 @@ function fileCertificateForToday(blob, filename){
   LabCalCerts.add(blob, {
     filename, sheet:'barkey',
     certRef:v('sheetNo'), serial:v('serial'), model:v('model'),
-    site:v('site'), jobRef:v('jobRef')
+    site:v('site'), jobRef:v('jobRef'),
+    // the unit this worksheet was opened for — the link that survives a
+    // corrected serial, a repeated certificate number or a mistyped job ref
+    unitUid: (window.LabCalJobsheet && LabCalJobsheet.link && (LabCalJobsheet.link()||{}).uid) || ''
   }).then(id=>{
     if(!id) warn('it could not be added to the job list' + (LabCalCerts.lastError()? ' — '+LabCalCerts.lastError() : '') + '.');
   });
