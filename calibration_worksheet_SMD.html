@@ -468,6 +468,12 @@ function applyJobsheetHandoff(){
   fill('department', d.location||j.department||'');
   fill('site', j.customer||'');
   fill('jobRef', j.callNumber||'');
+  // The autosave has already put the PREVIOUS unit's details back on this
+  // form, so fill() — which only writes into an empty field — left the old
+  // job reference in place and the certificate was filed under the old job.
+  // Arriving from a job list, that list is authoritative: overwrite.
+  applyUnitIdentity(d, j);
+
   // Reopening a unit that was worked before: put its readings back.
   const restored=restoreUnitSnapshot(j.callNumber||'', d.serial||'');
   if(restored){

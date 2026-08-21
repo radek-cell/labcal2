@@ -1,4 +1,4 @@
-# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.503)
+# LabCal — offsets vault, jobsheet worklist, iPad saving, day panel (v1.504)
 
 Load each offsets file **once, on the home page**. Every worksheet then picks it
 up automatically until the reference thermometer's certificate expires.
@@ -29,6 +29,35 @@ A day with nothing on it reads plainly: *"Certificates — none on 01 Aug ·
 
 From here versions run **v1.500, v1.501, v1.502 …** — three digits, so there is
 room for a lot of small releases before anything needs a bigger number.
+
+## v1.504 — the certificate was filed under the wrong job
+
+Not the page failing to refresh this time — the certificate really was being
+filed against the **previous** job.
+
+Opening a unit filled the worksheet's header only where a field was **empty**.
+But the worksheet's own autosave had already restored the last unit worked, so
+the job reference box still held the earlier job's ENQ number, and the fill left
+it alone. The certificate was then filed under that old reference and never
+appeared on the new job.
+
+Arriving from a job list, that list is authoritative: model, serial, location,
+site and job reference are now **overwritten**, not just filled when blank.
+Applied to all four converted worksheets.
+
+Reproduced first — first job ENQ111 left in the autosave, second job ENQ222
+opened — and confirmed the worksheet now reads ENQ222 and the certificate lands
+on the right job.
+
+**Safety net.** A certificate now counts as belonging to a job if it carries the
+job reference **or** its serial matches one of that job's units. Anything that
+arrives under a different reference still shows on its unit's row, tagged
+*other job ref* with the reference it was filed under. A certificate that
+exists should never be invisible.
+
+**Smaller correction boxes.** The Edit fields were far too large on a tablet —
+now sized to their content: model 140 px, serial 190 px, location filling the
+line beneath.
 
 ## v1.503 — a new certificate shows up without being chased
 
@@ -1076,13 +1105,13 @@ that actually changed:
 | `calibration_worksheet_SNMD.html` | Auto-loads Fluke & Comark offsets |
 | `calibration_worksheet_19_24.html` | Auto-loads Fluke & Comark offsets |
 | `cloud_temp.html` | Auto-loads Fluke & Comark offsets |
-| `sw.js` | Cache bumped to **v46**; same-origin files network-first |
+| `sw.js` | Cache bumped to **v47**; same-origin files network-first |
 | `data_logger_viewer.html` | Chart PNG and summary CSV go through the share sheet on iPad |
 | `pdf_merge_reorder.html` | Merged PDF goes through the share sheet on iPad |
 | `tools.html` | Unchanged — included so the folder is complete |
 
 After uploading, open the home page once while online so the service worker
-picks up v46, then hit **Refresh offline copy**.
+picks up v47, then hit **Refresh offline copy**.
 
 ## Which file unlocks what
 
